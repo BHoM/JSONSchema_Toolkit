@@ -34,7 +34,7 @@ namespace BH.oM.JsonSchema
         /***************************************************/
 
         [Description("Dictionary mapping property names to their corresponding JSON schemas. Each property in the object data must validate against its associated schema.")]
-        public virtual Dictionary<string, Schema> Properties { get; set; } = new Dictionary<string, Schema>();
+        public virtual Dictionary<string, JsonSchema> Properties { get; set; } = new Dictionary<string, JsonSchema>();
 
         /***************************************************/
     }

@@ -36,16 +36,16 @@ namespace BH.Engine.JsonSchema
         /*******************************************/
 
 
-        private static Schema TypeSchema(Type type = null)
+        private static oM.JsonSchema.JsonSchema TypeSchema(Type type = null)
         {
-            Schema schema = Create.Schema(SchemaType.@object);
-            Schema nameSchema = ToJsonSchema(typeof(string), false, false, "", false, new HashSet<Type>());
+            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object);
+            oM.JsonSchema.JsonSchema nameSchema = ToJsonSchema(typeof(string), false, false, "", false, new HashSet<Type>());
             if(type != null)
                 nameSchema.Keywords.Add(new ConstKeyword { Value = type.FullName });
 
             PropertiesKeyword properties = new PropertiesKeyword
             {
-                Properties = new Dictionary<string, Schema>
+                Properties = new Dictionary<string, oM.JsonSchema.JsonSchema>
                 {
                     {m_TypeDescriminator, TypeDisciminatorSchema(typeof(Type)) },
                     {"Name", nameSchema  }
@@ -58,12 +58,12 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static Schema ColourSchema()
+        private static oM.JsonSchema.JsonSchema ColourSchema()
         {
-            Schema schema = Create.Schema(SchemaType.@object, false);
+            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
             PropertiesKeyword properties = new PropertiesKeyword
             {
-                Properties = new Dictionary<string, Schema>
+                Properties = new Dictionary<string, oM.JsonSchema.JsonSchema>
                 {
                     {m_TypeDescriminator, TypeDisciminatorSchema(typeof(System.Drawing.Color)) },
                     {"A", ToJsonSchema(typeof(int), false, false, "", false, new HashSet<Type>()) },
@@ -81,9 +81,9 @@ namespace BH.Engine.JsonSchema
         }
         /*******************************************/
 
-        private static Schema DataTableSchema()
+        private static oM.JsonSchema.JsonSchema DataTableSchema()
         {
-            Schema schema = Create.Schema(SchemaType.array);
+            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.array);
 
             ItemKeyword items = Create.ItemKeyword(SchemaType.@object);
 
@@ -93,13 +93,13 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static Schema TupleSchema(this Type tupleType, bool typeAsRef, bool includeInnerIds, HashSet<Type> visitedTypes)
+        private static oM.JsonSchema.JsonSchema TupleSchema(this Type tupleType, bool typeAsRef, bool includeInnerIds, HashSet<Type> visitedTypes)
         {
-            Schema schema = Create.Schema(SchemaType.array);
+            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.array);
 
             PrefixItemsKeyword items = new PrefixItemsKeyword { AllowAdditional = false };
             Type[] typeArgs = tupleType.GenericTypeArguments;
-            items.PreFixItems = new Schema[typeArgs.Length];
+            items.PreFixItems = new oM.JsonSchema.JsonSchema[typeArgs.Length];
 
             for (int i = 0; i < typeArgs.Length; i++)
             {
@@ -116,16 +116,16 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static Schema GenericParameterTypeSchema(this Type genericParameterType, bool typeAsRef, bool includeInnerIds, HashSet<Type> visitedTypes)
+        private static oM.JsonSchema.JsonSchema GenericParameterTypeSchema(this Type genericParameterType, bool typeAsRef, bool includeInnerIds, HashSet<Type> visitedTypes)
         {
             Type[] constraints = genericParameterType.GetGenericParameterConstraints();
             if (constraints.Length == 0)
-                return new Schema();    //Empty doc, no limitation
+                return new oM.JsonSchema.JsonSchema();    //Empty doc, no limitation
             else if (constraints.Length == 1)
                 return ToJsonSchema(constraints[0], includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes);
             else
             {
-                Schema schema = new Schema();
+                oM.JsonSchema.JsonSchema schema = new oM.JsonSchema.JsonSchema();
                 AllOfKeyword allOfKeyword = new AllOfKeyword();
                 foreach (Type type in constraints)
                 {
@@ -137,32 +137,32 @@ namespace BH.Engine.JsonSchema
         }
         /*******************************************/
 
-        private static Schema DecimalSchema()
+        private static oM.JsonSchema.JsonSchema DecimalSchema()
         {
-            Schema schema = Create.Schema(SchemaType.@object, false);
-            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, Schema> { { "$numberDecimal", ToJsonSchema(typeof(string), false, false, "", false, new HashSet<Type>()) } } });
+            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
+            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, oM.JsonSchema.JsonSchema> { { "$numberDecimal", ToJsonSchema(typeof(string), false, false, "", false, new HashSet<Type>()) } } });
             return schema;
         }
 
         /*******************************************/
 
-        private static Schema DateTimeSchema()
+        private static oM.JsonSchema.JsonSchema DateTimeSchema()
         {
-            Schema schema = Create.Schema(SchemaType.@object, false);
+            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
 
-            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, Schema> { { "$date", ToJsonSchema(typeof(int), false, false, "", false, new HashSet<Type>()) } } });
+            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, oM.JsonSchema.JsonSchema> { { "$date", ToJsonSchema(typeof(int), false, false, "", false, new HashSet<Type>()) } } });
             return schema;
         }
 
         /*******************************************/
 
-        private static Schema DateTimeOffsetSchema()
+        private static oM.JsonSchema.JsonSchema DateTimeOffsetSchema()
         {
-            Schema schema = Create.Schema(SchemaType.array);
+            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.array);
 
             PrefixItemsKeyword items = new PrefixItemsKeyword { AllowAdditional = false };
 
-            items.PreFixItems = new Schema[2];
+            items.PreFixItems = new oM.JsonSchema.JsonSchema[2];
             items.PreFixItems[0] = ToJsonSchema(typeof(long), false, false, "", false, new HashSet<Type>());
             items.PreFixItems[1] = ToJsonSchema(typeof(int), false, false, "", false, new HashSet<Type>());
             schema.Keywords.Add(items);
@@ -171,9 +171,9 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static Schema IComparableSchema()
+        private static oM.JsonSchema.JsonSchema IComparableSchema()
         {
-            Schema schema = new Schema();
+            oM.JsonSchema.JsonSchema schema = new oM.JsonSchema.JsonSchema();
             TypeKeyword typeKeyword = new TypeKeyword { Type = new SchemaType[] { SchemaType.@object, SchemaType.integer, SchemaType.@string, SchemaType.number, SchemaType.@null } };
             schema.Keywords.Add(typeKeyword);
             return schema;
@@ -181,23 +181,23 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static Schema SystemObjectSchema()
+        private static oM.JsonSchema.JsonSchema SystemObjectSchema()
         {
-            Schema schema = new Schema();
+            oM.JsonSchema.JsonSchema schema = new oM.JsonSchema.JsonSchema();
             return schema;
         }
 
         /*******************************************/
 
-        private static Schema NoUpdateExceptionSchema(Type type)
+        private static oM.JsonSchema.JsonSchema NoUpdateExceptionSchema(Type type)
         {
-            Schema schema = Create.Schema(SchemaType.@object, false);
+            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
             var id = type.SchemaId();
             if (id != null)
             {
                 schema.Keywords.Add(new IdKeyword() { Uri = id });
             }
-            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, Schema> { { "Message", ToJsonSchema(typeof(string), false, false, "", false, new HashSet<Type>()) } } });
+            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, oM.JsonSchema.JsonSchema> { { "Message", ToJsonSchema(typeof(string), false, false, "", false, new HashSet<Type>()) } } });
             schema.Keywords.Add(new RequiredKeyword { Required = new List<string> { "Message" } });
             return schema;
         }

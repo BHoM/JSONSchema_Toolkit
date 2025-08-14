@@ -42,7 +42,7 @@ namespace BH.Engine.JsonSchema
         [Description("Converts a Schema to a JSON string representation.")]
         [Input("schema", "The Schema to convert to a JSON string.")]
         [Output("json", "The JSON string representation of the Schema.")]
-        public static string ToText(this Schema schema)
+        public static string ToText(this oM.JsonSchema.JsonSchema schema)
         {
             BsonDocument document = new BsonDocument();
             schema.Serialise(new MongoDB.Bson.IO.BsonDocumentWriter(document), null);
@@ -54,7 +54,7 @@ namespace BH.Engine.JsonSchema
         /**** Private Methods                   ****/
         /*******************************************/
 
-        private static void Serialise(this Schema value, BsonDocumentWriter writer, Type targetType)
+        private static void Serialise(this oM.JsonSchema.JsonSchema value, BsonDocumentWriter writer, Type targetType)
         {
             if (value == null)
             {

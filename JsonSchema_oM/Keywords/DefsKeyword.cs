@@ -34,7 +34,7 @@ namespace BH.oM.JsonSchema
         /***************************************************/
 
         [Description("Dictionary of named schema definitions that can be referenced by other parts of the schema. The key is the definition name and the value is the corresponding JSON schema.")]
-        public virtual Dictionary<string, Schema> Definitions { get; set; } = new Dictionary<string, Schema>();
+        public virtual Dictionary<string, JsonSchema> Definitions { get; set; } = new Dictionary<string, JsonSchema>();
 
         /***************************************************/
     }

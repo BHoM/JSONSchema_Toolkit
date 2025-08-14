@@ -33,7 +33,7 @@ namespace BH.oM.JsonSchema
         /***************************************************/
 
         [Description("The JSON schema that each item in the array must validate against. All array elements must conform to this schema.")]
-        public virtual Schema Item { get; set; }
+        public virtual JsonSchema Item { get; set; }
 
         /***************************************************/
     }

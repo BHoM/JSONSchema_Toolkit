@@ -35,7 +35,7 @@ namespace BH.oM.JsonSchema
         /***************************************************/
 
         [Description("Array of JSON schemas where each schema validates the corresponding array element at the same index position (tuple-style validation).")]
-        public virtual Schema[] PreFixItems { get; set; }
+        public virtual JsonSchema[] PreFixItems { get; set; }
 
         [Description("Indicates whether additional array elements beyond the defined prefix items are allowed. If false, the array cannot have more elements than defined in PreFixItems.")]
         public virtual bool AllowAdditional { get; set; }

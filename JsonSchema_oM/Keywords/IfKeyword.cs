@@ -33,13 +33,13 @@ namespace BH.oM.JsonSchema
         /***************************************************/
 
         [Description("The condition schema that is evaluated first. If the data validates against this schema, the Then schema is applied.")]
-        public virtual Schema If { get; set; }
+        public virtual JsonSchema If { get; set; }
 
         [Description("The schema that is applied when the If condition is satisfied. This schema must be valid for the overall validation to pass.")]
-        public virtual Schema Then { get; set; }
+        public virtual JsonSchema Then { get; set; }
 
         [Description("The schema that is applied when the If condition is not satisfied. This schema must be valid for the overall validation to pass.")]
-        public virtual Schema Else { get; set; }
+        public virtual JsonSchema Else { get; set; }
 
         /***************************************************/
     }

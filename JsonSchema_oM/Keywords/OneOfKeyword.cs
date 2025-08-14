@@ -34,7 +34,7 @@ namespace BH.oM.JsonSchema
         /***************************************************/
 
         [Description("List of JSON schemas where the data must validate against exactly one. The data must satisfy one schema and fail validation against all others.")]
-        public virtual List<Schema> Options { get; set; } = new List<Schema>();
+        public virtual List<JsonSchema> Options { get; set; } = new List<JsonSchema>();
 
         /***************************************************/
     }

@@ -28,7 +28,7 @@ using System.Text;
 namespace BH.oM.JsonSchema
 {
     [Description("Class for generating JsonSchemas.")]
-    public class Schema
+    public class JsonSchema
     {
         /***************************************************/
         /**** Properties                                ****/

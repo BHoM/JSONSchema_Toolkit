@@ -11,7 +11,7 @@ namespace BH.Engine.JsonSchema
         /**** Public Methods                    ****/
         /*******************************************/
 
-        public static ItemKeyword ItemKeyword(Schema schema)
+        public static ItemKeyword ItemKeyword(oM.JsonSchema.JsonSchema schema)
         {
             return new ItemKeyword { Item =  schema };
         }
@@ -20,7 +20,7 @@ namespace BH.Engine.JsonSchema
 
         public static ItemKeyword ItemKeyword(SchemaType schemaType)
         {
-            return ItemKeyword(Schema(schemaType));
+            return ItemKeyword(JsonSchema(schemaType));
         }
 
         /*******************************************/
