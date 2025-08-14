@@ -77,7 +77,6 @@ namespace BH.Engine.JsonSchema
                 }
             }
 
-
             if (typeAsRef)
             {
                 var id = type.SchemaId();
@@ -289,27 +288,6 @@ namespace BH.Engine.JsonSchema
 
         private static oM.JsonSchema.JsonSchema InterfaceSchema(oM.JsonSchema.JsonSchema schema, Type type, bool typeAsRef, bool includeInnerIds, HashSet<Type> visitedTypes)
         {
-            ////////////////////////////////////////////////
-            //Require the _t to be set for interface and abstract types to be able to differentiate between which subtype that is wanted
-            //schema.Keywords.Add(new RequiredKeyword { Required = new List<string> { m_TypeDescriminator } });
-            //List<Type> subTypes = type.Subtypes().Where(x => x.IsInBHoMOrg()).ToList();
-            //if (subTypes.Count > 0)
-            //{
-            //    AnyOfKeyword oneOf = new AnyOfKeyword();
-
-            //    foreach (Type subType in subTypes)
-            //    {
-            //        JsonSchema subSchema = subType.ToJsonSchema(includeInnerIds, typeAsRef, "", includeInnerIds);
-            //        oneOf.Options.Add(subSchema);
-            //    }
-
-            //    //JsonSchema oneOfSchema = new JsonSchema();
-            //    //oneOfSchema.Keywords.Add(new DescriptionKeyword { Description = "For case of no type-discriminator defined, the data is matched based on a oneOff pattern. This can for edgecases give errors if two classes mapped in here share the exact same properties." });
-            //    schema.Keywords.Add(oneOf);
-            //}
-            //return schema;
-            ////////////////////////////////////////////////
-
             schema.Keywords.Add(new RequiredKeyword { Required = new List<string> { m_TypeDescriminator } });
             List<Type> subTypes = type.Subtypes().Where(x => x.IsInBHoMOrg()).OrderBy(x => x.FullName).ToList();
             AllOfKeyword allOf = new AllOfKeyword();
@@ -345,75 +323,6 @@ namespace BH.Engine.JsonSchema
                 schema.Keywords.Add(allOf);
             }
             return schema;
-
-            //JsonSchema oneOfSchema = new JsonSchema();
-            //oneOfSchema.Keywords.Add(new DescriptionKeyword { Description = "For case of no type-discriminator defined, the data is matched based on a oneOff pattern. This can for edgecases give errors if two classes mapped in here share the exact same properties." });
-            //oneOfSchema.Keywords.Add(oneOf);
-            //JsonSchema allOfSchema = new JsonSchema();
-            //allOfSchema.Keywords.Add(new DescriptionKeyword { Description = "All of with If-then acts as a switch-case based on the value of _t. Switched based on the type defined." });
-            //allOfSchema.Keywords.Add(allOf);
-
-            ////Add descriptions to highlight what is going on
-            //hasDiscriminatorIf.Keywords.Add(new DescriptionKeyword { Description = "If a type discirminator (_t) has been set, use that to find the type to validate against." });
-
-            ////////////////////////////////////////////////
-
-            //IfKeyword checkDiscriminatorIf = new IfKeyword()
-            //{
-            //    If = hasDiscriminatorIf,
-            //    Then = allOfSchema,
-            //    Else = oneOfSchema
-            //};
-
-            //schema.Keywords.Add(checkDiscriminatorIf);
-            //return schema;
-
-            //JsonSchema hasDiscriminatorIf = new JsonSchema();
-            //hasDiscriminatorIf.Keywords.Add(new RequiredKeyword { Required = new List<string> { m_TypeDescriminator } });
-
-            //AllOfKeyword allOf = new AllOfKeyword();
-            //OneOfKeyword oneOf = new OneOfKeyword();
-
-            //foreach (Type subType in type.Subtypes())
-            //{
-            //    IfKeyword ifKeyword = new IfKeyword();
-            //    JsonSchema hasThisTypeDiscriminator = new JsonSchema();
-            //    PropertiesKeyword propertiesKeyword = new PropertiesKeyword();
-            //    propertiesKeyword.Properties[m_TypeDescriminator] = TypeDisciminatorSchema(subType);
-            //    hasThisTypeDiscriminator.Keywords.Add(propertiesKeyword);
-            //    JsonSchema subSchema = subType.ToJsonSchema(includeInnerIds, typeAsRef, "", includeInnerIds);
-
-            //    ifKeyword.If = hasThisTypeDiscriminator;
-            //    ifKeyword.Then = subSchema;
-
-            //    JsonSchema allOfitem = new JsonSchema();
-            //    allOfitem.Keywords.Add(ifKeyword);
-            //    allOf.Options.Add(allOfitem);
-
-            //    oneOf.Options.Add(subSchema);
-            //}
-
-            //JsonSchema oneOfSchema = new JsonSchema();
-            //oneOfSchema.Keywords.Add(new DescriptionKeyword { Description = "For case of no type-discriminator defined, the data is matched based on a oneOff pattern. This can for edgecases give errors if two classes mapped in here share the exact same properties." });
-            //oneOfSchema.Keywords.Add(oneOf);
-            //JsonSchema allOfSchema = new JsonSchema();
-            //allOfSchema.Keywords.Add(new DescriptionKeyword { Description = "All of with If-then acts as a switch-case based on the value of _t. Switched based on the type defined." });
-            //allOfSchema.Keywords.Add(allOf);
-
-            ////Add descriptions to highlight what is going on
-            //hasDiscriminatorIf.Keywords.Add(new DescriptionKeyword { Description = "If a type discirminator (_t) has been set, use that to find the type to validate against." });
-
-
-
-            //IfKeyword checkDiscriminatorIf = new IfKeyword()
-            //{
-            //    If = hasDiscriminatorIf,
-            //    Then = allOfSchema,
-            //    Else = oneOfSchema
-            //};
-
-            //schema.Keywords.Add(checkDiscriminatorIf);
-            //return schema;
         }
 
         /*******************************************/
