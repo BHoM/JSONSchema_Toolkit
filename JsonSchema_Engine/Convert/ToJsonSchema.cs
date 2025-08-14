@@ -67,7 +67,18 @@ namespace BH.Engine.JsonSchema
             }
 
             schema = new oM.JsonSchema.JsonSchema();
-            if (typeAsRef )
+
+            if (includeId)
+            {
+                var id = type.SchemaId();
+                if (id != null)
+                {
+                    schema.Keywords.Add(new IdKeyword() { Uri = id });
+                }
+            }
+
+
+            if (typeAsRef)
             {
                 var id = type.SchemaId();
                 if (id != null)
@@ -78,7 +89,7 @@ namespace BH.Engine.JsonSchema
             }
             else
             {
-                if(visitedTypes.Contains(type))
+                if (visitedTypes.Contains(type))
                 {
                     BH.Engine.Base.Compute.RecordError($"Type {type.FullName} has already been visited. This is likely due to a circular reference in the type hierarchy. Returning empty schema to avoid infinite recursion. The schema type can only be generated with type AsRef set to true.");
                     return new oM.JsonSchema.JsonSchema(); //Return empty schema to avoid infinite recursion
@@ -86,15 +97,6 @@ namespace BH.Engine.JsonSchema
 
                 //Add the type to the visited types to avoid circular references
                 visitedTypes.Add(type);
-
-                if (includeId)
-                {
-                    var id = type.SchemaId();
-                    if (id != null)
-                    {
-                        schema.Keywords.Add(new IdKeyword() { Uri = id });
-                    }
-                }
             }
 
 
@@ -309,7 +311,7 @@ namespace BH.Engine.JsonSchema
             ////////////////////////////////////////////////
 
             schema.Keywords.Add(new RequiredKeyword { Required = new List<string> { m_TypeDescriminator } });
-            List<Type> subTypes = type.Subtypes().Where(x => x.IsInBHoMOrg()).ToList();
+            List<Type> subTypes = type.Subtypes().Where(x => x.IsInBHoMOrg()).OrderBy(x => x.FullName).ToList();
             AllOfKeyword allOf = new AllOfKeyword();
 
             if (subTypes.Count > 0)
