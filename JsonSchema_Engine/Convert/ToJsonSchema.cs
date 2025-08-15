@@ -151,7 +151,7 @@ namespace BH.Engine.JsonSchema
                             //RequiredKeyword req = new RequiredKeyword { Required = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public).Where(x => x.GetCustomAttribute<DynamicPropertyAttribute>() == null).Select(x => x.Name).Except(new string[] { "Fragments", "Tags" }).ToList() };
                             properties.Properties[m_TypeDescriminator] = TypeDisciminatorSchema(type, "Optional type disciminator.");
                             if (includeId)
-                                properties.Properties["_bhomVersion"] = ToJsonSchema(typeof(string), false, false, "Optional version of BHoM used as part of automatic versioning and schema upgrades.", false, visitedTypes);
+                                properties.Properties[m_BHoMVersionProperty] = ToJsonSchema(typeof(string), false, false, "Optional version of BHoM used as part of automatic versioning and schema upgrades.", false, visitedTypes);
                             schema.Keywords.Add(properties);
                             schema.Keywords.Add(type.RequiredProperties());
                             //schema.Keywords.Add(new AdditionalPropertiesKeyword { AllowAdditionalProperties = false });
@@ -249,7 +249,7 @@ namespace BH.Engine.JsonSchema
 
             oM.JsonSchema.JsonSchema baseSchema = BaseArraySchema(new oM.JsonSchema.JsonSchema(), type, typeAsRef, includeInnerIds, desc, visitedTypes);
 
-            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, oM.JsonSchema.JsonSchema> { { "_v", baseSchema } } });
+            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, oM.JsonSchema.JsonSchema> { { m_ValueProperty, baseSchema } } });
             return schema;
 
         }
@@ -352,11 +352,11 @@ namespace BH.Engine.JsonSchema
                 {
                     OneOfKeyword oneOfKeyword = new OneOfKeyword();
                     if (enumKeyword != null)
-                        oneOfKeyword.Options.Add(Create.JsonSchemaSingelKeyword(enumKeyword));
+                        oneOfKeyword.Options.Add(Create.JsonSchemaSingleKeyword(enumKeyword));
 
                     foreach (Type type in genericTypes)
                     {
-                        oneOfKeyword.Options.Add(Create.JsonSchemaSingelKeyword(type.TypeConstantWithGenericCheck()));
+                        oneOfKeyword.Options.Add(Create.JsonSchemaSingleKeyword(type.TypeConstantWithGenericCheck()));
                     }
                     requiredTypes.Keywords.Add(oneOfKeyword);
                 }
@@ -461,7 +461,7 @@ namespace BH.Engine.JsonSchema
             List<PropertyInfo> properties = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public).ToList();
 
             if (typeof(IBHoMObject).IsAssignableFrom(type))
-                properties = properties.Where(x => x.Name != "Tags" && x.Name != "Fragments").ToList();
+                properties = properties.Where(x => x.Name != m_TagsProperty && x.Name != m_FragmentsProperty).ToList();
 
             //RequiredKeyword req = new RequiredKeyword { Required = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public).Where(x => x.GetCustomAttribute<DynamicPropertyAttribute>() == null).Select(x => x.Name).Except(new string[] { "Fragments", "Tags" }).ToList() };
 
@@ -663,7 +663,7 @@ namespace BH.Engine.JsonSchema
                 Properties = new Dictionary<string, oM.JsonSchema.JsonSchema>
                 {
                     { m_TypeDescriminator, TypeDisciminatorSchema(typeof(FragmentSet)) },
-                    {"_v", array },
+                    {m_ValueProperty, array },
                 }
             });
 
@@ -673,9 +673,21 @@ namespace BH.Engine.JsonSchema
         }
 
         /*******************************************/
+        /**** Private Constants                 ****/
+        /*******************************************/
+        
         private const string m_TypeDescriminator = "_t";
-
-        private static HashSet<Type> m_TupleTypes = new HashSet<Type>() { typeof(Tuple<,>), typeof(Tuple<,,>), typeof(Tuple<,,,>), typeof(Tuple<,,,,>), typeof(Tuple<,,,,,>), typeof(Tuple<,,,,,,>), typeof(Tuple<,,,,,,,>) };
+        private const string m_BHoMVersionProperty = "_bhomVersion";
+        private const string m_ValueProperty = "_v";
+        private const string m_FragmentsProperty = "Fragments";
+        private const string m_TagsProperty = "Tags";
+        
+        private static readonly HashSet<Type> m_TupleTypes = new HashSet<Type>() 
+        { 
+            typeof(Tuple<,>), typeof(Tuple<,,>), typeof(Tuple<,,,>), 
+            typeof(Tuple<,,,,>), typeof(Tuple<,,,,,>), typeof(Tuple<,,,,,,>), 
+            typeof(Tuple<,,,,,,,>) 
+        };
     }
 }
 

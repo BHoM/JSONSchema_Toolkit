@@ -11,7 +11,7 @@ namespace BH.Engine.JsonSchema
         /**** Public Methods                    ****/
         /*******************************************/
 
-        public static oM.JsonSchema.JsonSchema JsonSchemaSingelKeyword(ISchemaKeyWord keyWord)
+        public static oM.JsonSchema.JsonSchema JsonSchemaSingleKeyword(ISchemaKeyWord keyWord)
         {
             return new oM.JsonSchema.JsonSchema { Keywords = new List<ISchemaKeyWord> { keyWord } };
         }
@@ -20,14 +20,14 @@ namespace BH.Engine.JsonSchema
 
         public static oM.JsonSchema.JsonSchema JsonSchema(SchemaType schemaType, bool addNullIfNullable = false)
         {
-            return JsonSchemaSingelKeyword(Create.TypeKeyword(schemaType));
+            return JsonSchemaSingleKeyword(Create.TypeKeyword(schemaType));
         }
 
         /*******************************************/
 
         public static oM.JsonSchema.JsonSchema JsonSchema(Type type)
         {
-            return JsonSchemaSingelKeyword(Create.TypeKeyword(type));
+            return JsonSchemaSingleKeyword(Create.TypeKeyword(type));
         }
 
         /*******************************************/
