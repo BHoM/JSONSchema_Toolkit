@@ -389,7 +389,11 @@ namespace BH.Engine.JsonSchema
         {
             if (type.IsGenericType)
             {
-                string fullName = type.FullName.Split('[')[0].Replace(".", "\\.");
+                string fullName;
+                if(type.FullName != null)
+                    fullName = type.FullName.Split('[')[0].Replace(".", "\\.");
+                else
+                    fullName = (type.Namespace + "." + type.Name).Split('`')[0].Replace(".", "\\.");
                 return new PatternKeyword { Value = $"^{fullName}\\[\\[.*\\]\\]$" };
             }
             else
