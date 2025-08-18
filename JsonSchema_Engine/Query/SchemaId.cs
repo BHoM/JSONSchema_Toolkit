@@ -34,15 +34,16 @@ namespace BH.Engine.JsonSchema
         /**** Public Methods                            ****/
         /***************************************************/
 
+        [Description("Gets the full ID path URI to the type based on its assembly and namespace. This method returns the full ID path URI to the type, which can be used to reference the schema in a JSON Schema document.")]
         public static Uri SchemaId(this Type type, string branch)
         {
             if(!(typeof(IObject).IsAssignableFrom(type) || type.IsEnum))
                 return null;    
 
-            string baseBath = $"https://raw.githubusercontent.com/BHoM/BHoM_JSONSchema/{branch}/";
+            string basePath = $"https://raw.githubusercontent.com/BHoM/BHoM_JSONSchema/{branch}/";
             string relativeSchema = type.RelativeSchemaId();
             if(relativeSchema != null)
-                return new Uri($"{baseBath}{relativeSchema}");
+                return new Uri($"{basePath}{relativeSchema}");
             else
                 return null;
         }
