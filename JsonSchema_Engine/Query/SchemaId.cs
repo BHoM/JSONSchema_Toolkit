@@ -34,7 +34,7 @@ namespace BH.Engine.JsonSchema
         /**** Public Methods                            ****/
         /***************************************************/
 
-        public static Uri SchemaId(this Type type, string branch = "develop")
+        public static Uri SchemaId(this Type type, string branch)
         {
             if(!(typeof(IObject).IsAssignableFrom(type) || type.IsEnum))
                 return null;    

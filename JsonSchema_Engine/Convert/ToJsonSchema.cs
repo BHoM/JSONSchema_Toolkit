@@ -45,10 +45,11 @@ namespace BH.Engine.JsonSchema
         [Description("Convert a type To a JsonSchema represenation")]
         [Input("type", "Object to be converted")]
         [Output("jsonSChema", "Schema representation of the type")]
-        public static oM.JsonSchema.JsonSchema ToJsonSchema(this Type type, bool innerTypesAsRef = false, bool includeInnerIds = false)
+        public static oM.JsonSchema.JsonSchema ToJsonSchema(this Type type, ConvertConfig config)
         {
             HashSet<Type> visitedTypes = new HashSet<Type>();
-            return ToJsonSchema(type, true, innerTypesAsRef, "", includeInnerIds, visitedTypes);
+            config = config ?? new ConvertConfig();
+            return ToJsonSchema(type, true, config, "", visitedTypes);
         }
 
         /*******************************************/
@@ -58,9 +59,9 @@ namespace BH.Engine.JsonSchema
         [Description("Convert a type To a JsonSchema represenation")]
         [Input("type", "Object to be converted")]
         [Output("jsonSChema", "Schema representation of the type")]
-        private static oM.JsonSchema.JsonSchema ToJsonSchema(this Type type, bool includeId, bool typeAsRef, string desc, bool includeInnerIds, HashSet<Type> visitedTypes)
+        private static oM.JsonSchema.JsonSchema ToJsonSchema(this Type type, bool isTopLevel, ConvertConfig config, string desc, HashSet<Type> visitedTypes)
         {
-            oM.JsonSchema.JsonSchema schema = GetSystemSchema(type, includeId, typeAsRef, desc, includeInnerIds, visitedTypes);
+            oM.JsonSchema.JsonSchema schema = GetSystemSchema(type, config, desc, visitedTypes);
             if(schema != null)
             {
                 return schema;
@@ -68,43 +69,45 @@ namespace BH.Engine.JsonSchema
 
             schema = new oM.JsonSchema.JsonSchema();
 
-            if (includeId)
+            if ((isTopLevel && config.IncludeId) || (!config.TypesAsRef && config.IncludeInnerIds))
             {
-                var id = type.SchemaId();
+                var id = type.SchemaId(config.Branch);
                 if (id != null)
                 {
                     schema.Keywords.Add(new IdKeyword() { Uri = id });
                 }
             }
-
-            if (typeAsRef)
-            {
-                var id = type.SchemaId();
-                if (id != null)
-                {
-                    schema.Keywords.Add(new RefKeyword() { Uri = id });
-                    return schema;
-                }
-            }
             else
             {
-                if (visitedTypes.Contains(type))
+                if (config.TypesAsRef)
                 {
-                    BH.Engine.Base.Compute.RecordError($"Type {type.FullName} has already been visited. This is likely due to a circular reference in the type hierarchy. Returning empty schema to avoid infinite recursion. The schema type can only be generated with type AsRef set to true.");
-                    return new oM.JsonSchema.JsonSchema(); //Return empty schema to avoid infinite recursion
+                    var id = type.SchemaId(config.Branch);
+                    if (id != null)
+                    {
+                        schema.Keywords.Add(new RefKeyword() { Uri = id });
+                        return schema;
+                    }
                 }
+                else
+                {
+                    if (visitedTypes.Contains(type))
+                    {
+                        BH.Engine.Base.Compute.RecordError($"Type {type.FullName} has already been visited. This is likely due to a circular reference in the type hierarchy. Returning empty schema to avoid infinite recursion. The schema type can only be generated with type AsRef set to true.");
+                        return new oM.JsonSchema.JsonSchema(); //Return empty schema to avoid infinite recursion
+                    }
 
-                //Add the type to the visited types to avoid circular references
-                visitedTypes.Add(type);
+                    //Add the type to the visited types to avoid circular references
+                    visitedTypes.Add(type);
+                }
             }
 
 
             if (type == typeof(FragmentSet))
-                return FragmentSetJsonSchema(schema, typeAsRef, includeInnerIds, visitedTypes);
+                return FragmentSetJsonSchema(schema, config, visitedTypes);
 
             if (type.Namespace.IsOmNamespace() && (type.IsInterface || type.IsAbstract))
             {
-                return InterfaceSchema(schema, type, typeAsRef, includeInnerIds, visitedTypes);
+                return InterfaceSchema(schema, type, config, visitedTypes);
             }
 
             if (typeof(IObject).IsAssignableFrom(type))
@@ -115,7 +118,7 @@ namespace BH.Engine.JsonSchema
 
             SchemaType schemaType = type.SchemaType();
             if (schemaType == SchemaType.array)
-                return ArraySchema(schema, type, typeAsRef, includeInnerIds, desc, visitedTypes);
+                return ArraySchema(schema, type, config, desc, visitedTypes);
 
             schema.Keywords.Add(Create.TypeKeyword(schemaType, type.IsNullable()));
 
@@ -137,21 +140,21 @@ namespace BH.Engine.JsonSchema
             switch (schemaType)
             {
                 case SchemaType.array:
-                    ItemKeyword items = GetItems(type, typeAsRef, includeInnerIds, visitedTypes);
+                    ItemKeyword items = GetItems(type, config, visitedTypes);
                     if (items != null)
                         schema.Keywords.Add(items);
                     break;
                 case SchemaType.@object:
                     if (!typeof(IDynamicPropertyProvider).IsAssignableFrom(type))
                     {
-                        PropertiesKeyword properties = GetProperties(type, typeAsRef, includeInnerIds, visitedTypes);
+                        PropertiesKeyword properties = GetProperties(type,config, visitedTypes);
                         if (properties != null)
                         {
                             //Put proeprties declared on the type as required. This skips over properties inherited from base class
                             //RequiredKeyword req = new RequiredKeyword { Required = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public).Where(x => x.GetCustomAttribute<DynamicPropertyAttribute>() == null).Select(x => x.Name).Except(new string[] { "Fragments", "Tags" }).ToList() };
                             properties.Properties[m_TypeDescriminator] = TypeDisciminatorSchema(type, "Optional type disciminator.");
-                            if (includeId)
-                                properties.Properties[m_BHoMVersionProperty] = ToJsonSchema(typeof(string), false, false, "Optional version of BHoM used as part of automatic versioning and schema upgrades.", false, visitedTypes);
+                            if (isTopLevel)
+                                properties.Properties[m_BHoMVersionProperty] = ToJsonSchema(typeof(string), false, config, "Optional version of BHoM used as part of automatic versioning and schema upgrades.", visitedTypes);
                             schema.Keywords.Add(properties);
                             schema.Keywords.Add(type.RequiredProperties());
                             //schema.Keywords.Add(new AdditionalPropertiesKeyword { AllowAdditionalProperties = false });
@@ -181,11 +184,11 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static oM.JsonSchema.JsonSchema GetSystemSchema(this Type type, bool includeId, bool typeAsRef, string desc, bool includeInnerIds, HashSet<Type> visitedTypes)
+        private static oM.JsonSchema.JsonSchema GetSystemSchema(this Type type, ConvertConfig config, string desc, HashSet<Type> visitedTypes)
         {
             if (type.Name == "NoUpdateException")
             {
-                return NoUpdateExceptionSchema(type);
+                return NoUpdateExceptionSchema(type, config);
             }
             if (type == typeof(Type))
             {
@@ -201,7 +204,7 @@ namespace BH.Engine.JsonSchema
             }
             if (type.IsGenericType && m_TupleTypes.Contains(type.GetGenericTypeDefinition()))
             {
-                return TupleSchema(type, typeAsRef, includeInnerIds, visitedTypes);
+                return TupleSchema(type, config, visitedTypes);
             }
             if (type == typeof(DateTime))
             {
@@ -238,16 +241,16 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static oM.JsonSchema.JsonSchema ArraySchema(oM.JsonSchema.JsonSchema schema, Type type, bool typeAsRef, bool includeInnerIds, string desc, HashSet<Type> visitedTypes)
+        private static oM.JsonSchema.JsonSchema ArraySchema(oM.JsonSchema.JsonSchema schema, Type type, ConvertConfig config, string desc, HashSet<Type> visitedTypes)
         {
             if (type.IsBaseArrayType())
             {
-                return BaseArraySchema(schema, type, typeAsRef, includeInnerIds, desc, visitedTypes);
+                return BaseArraySchema(schema, type, config, desc, visitedTypes);
             }
 
             schema.Keywords.Add(Create.TypeKeyword(SchemaType.@object, true));
 
-            oM.JsonSchema.JsonSchema baseSchema = BaseArraySchema(new oM.JsonSchema.JsonSchema(), type, typeAsRef, includeInnerIds, desc, visitedTypes);
+            oM.JsonSchema.JsonSchema baseSchema = BaseArraySchema(new oM.JsonSchema.JsonSchema(), type, config, desc, visitedTypes);
 
             schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, oM.JsonSchema.JsonSchema> { { m_ValueProperty, baseSchema } } });
             return schema;
@@ -256,7 +259,7 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static oM.JsonSchema.JsonSchema BaseArraySchema(oM.JsonSchema.JsonSchema schema, Type type, bool typeAsRef, bool includeInnerIds, string desc, HashSet<Type> visitedTypes)
+        private static oM.JsonSchema.JsonSchema BaseArraySchema(oM.JsonSchema.JsonSchema schema, Type type, ConvertConfig config, string desc, HashSet<Type> visitedTypes)
         {
             schema.Keywords.Add(Create.TypeKeyword(SchemaType.array, type.IsNullable()));
             string typeDesc = type.GetCustomAttribute<DescriptionAttribute>()?.Description;
@@ -270,7 +273,7 @@ namespace BH.Engine.JsonSchema
             if (!string.IsNullOrWhiteSpace(desc))   //If description set, add to schema
                 schema.Keywords.Add(new DescriptionKeyword { Description = desc });
 
-            ItemKeyword items = GetItems(type, typeAsRef, includeInnerIds, visitedTypes);
+            ItemKeyword items = GetItems(type, config, visitedTypes);
             if (items != null)
                 schema.Keywords.Add(items);
 
@@ -286,7 +289,7 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static oM.JsonSchema.JsonSchema InterfaceSchema(oM.JsonSchema.JsonSchema schema, Type type, bool typeAsRef, bool includeInnerIds, HashSet<Type> visitedTypes)
+        private static oM.JsonSchema.JsonSchema InterfaceSchema(oM.JsonSchema.JsonSchema schema, Type type, ConvertConfig config, HashSet<Type> visitedTypes)
         {
             schema.Keywords.Add(new RequiredKeyword { Required = new List<string> { m_TypeDescriminator } });
             List<Type> subTypes = type.Subtypes().Where(x => x.IsInBHoMOrg()).OrderBy(x => x.FullName).ToList();
@@ -311,7 +314,7 @@ namespace BH.Engine.JsonSchema
                     propertiesKeyword.Properties[m_TypeDescriminator] = TypeDisciminatorSchema(subType);
                     hasThisTypeDiscriminator.Keywords.Add(propertiesKeyword);
                     hasThisTypeDiscriminator.Keywords.Add(new RequiredKeyword { Required = new List<string> { m_TypeDescriminator } });
-                    oM.JsonSchema.JsonSchema subSchema = subType.ToJsonSchema(includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes);
+                    oM.JsonSchema.JsonSchema subSchema = subType.ToJsonSchema(false, config, "", visitedTypes);
 
                     ifKeyword.If = hasThisTypeDiscriminator;
                     ifKeyword.Then = subSchema;
@@ -395,7 +398,7 @@ namespace BH.Engine.JsonSchema
         }
         /*******************************************/
 
-        private static PropertiesKeyword GetProperties(Type type, bool typeAsRef, bool includeInnerIds, HashSet<Type> visitedTypes)
+        private static PropertiesKeyword GetProperties(Type type, ConvertConfig config, HashSet<Type> visitedTypes)
         {
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
             {
@@ -430,7 +433,7 @@ namespace BH.Engine.JsonSchema
                             if (classification != null)
                                 desc += $" Property has a quantity of type {classification.GetType().Name} measured in [{classification.SIUnit}].";
 
-                            properties.Properties[field.Name] = ToJsonSchema(property.PropertyType.GenericTypeArguments[1], includeInnerIds, typeAsRef, desc, includeInnerIds, visitedTypes);
+                            properties.Properties[field.Name] = ToJsonSchema(property.PropertyType.GenericTypeArguments[1], false, config, desc, visitedTypes);
                         }
 
                     }
@@ -441,7 +444,7 @@ namespace BH.Engine.JsonSchema
                         if (classification != null)
                             desc += $" Property has a quantity of type {classification.GetType().Name} measured in [{classification.SIUnit}].";
 
-                        properties.Properties[property.Name] = ToJsonSchema(property.PropertyType, includeInnerIds, typeAsRef, desc, includeInnerIds, visitedTypes);
+                        properties.Properties[property.Name] = ToJsonSchema(property.PropertyType, false, config, desc, visitedTypes);
                     }
                 }
                 return properties;
@@ -461,9 +464,7 @@ namespace BH.Engine.JsonSchema
             List<PropertyInfo> properties = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public).ToList();
 
             if (typeof(IBHoMObject).IsAssignableFrom(type))
-                properties = properties.Where(x => x.Name != m_TagsProperty && x.Name != m_FragmentsProperty).ToList();
-
-            //RequiredKeyword req = new RequiredKeyword { Required = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public).Where(x => x.GetCustomAttribute<DynamicPropertyAttribute>() == null).Select(x => x.Name).Except(new string[] { "Fragments", "Tags" }).ToList() };
+                properties = properties.Where(x => x.Name != m_TagsProperty && x.Name != m_FragmentsProperty).ToList();     //Tags and Fragments are not required properties of BHoMObjects
 
             if (typeof(IImmutable).IsAssignableFrom(type))
             {
@@ -494,18 +495,6 @@ namespace BH.Engine.JsonSchema
 
             if (typeof(IDynamicObject).IsAssignableFrom(type))
                 properties = properties.Where(x => x.GetCustomAttribute<DynamicPropertyAttribute>() == null).ToList();  //Remove dynamic properties for dynamic objects
-
-            //if ((typeof(IBHoMObject).IsAssignableFrom(type)))
-            //{
-            //    //Remove base IBHoMObejct proeprties that have not been overridden
-            //    foreach (PropertyInfo baseBHomProp in typeof(IBHoMObject).GetProperties())
-            //    {
-            //        PropertyInfo prop = properties.FirstOrDefault(x => x.Name == baseBHomProp.Name);
-
-            //        if (prop != null && prop.DeclaringType != type)
-            //            properties.Remove(prop);
-            //    }
-            //}
 
             return new RequiredKeyword { Required = properties.Select(x => x.Name).ToList() };
 
@@ -558,18 +547,18 @@ namespace BH.Engine.JsonSchema
         [Description("Convert a type To a JsonSchema represenation")]
         [Input("type", "Object to be converted")]
         [Output("jsonSChema", "Schema representation of the type")]
-        private static ItemKeyword GetItems(this Type type, bool typeAsRef, bool includeInnerIds, HashSet<Type> visitedTypes)
+        private static ItemKeyword GetItems(this Type type, ConvertConfig config, HashSet<Type> visitedTypes)
         {
             if (type.IsArray)
             {
                 int rank = type.GetArrayRank();
                 if (rank == 1)
                 {
-                    return Create.ItemKeyword(ToJsonSchema(type.GetElementType(), includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes));
+                    return Create.ItemKeyword(ToJsonSchema(type.GetElementType(), false, config, "", visitedTypes));
                 }
                 else
                 {
-                    ItemKeyword innerItem = Create.ItemKeyword(ToJsonSchema(type.GetElementType(), includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes));
+                    ItemKeyword innerItem = Create.ItemKeyword(ToJsonSchema(type.GetElementType(), false, config, "", visitedTypes));
                     ItemKeyword current = innerItem;
                     for (int i = 0; i < rank - 1; i++)
                     {
@@ -588,8 +577,8 @@ namespace BH.Engine.JsonSchema
                 {
                     Properties = new Dictionary<string, oM.JsonSchema.JsonSchema>
                     {
-                        {"k", ToJsonSchema(typeContraints[0], includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes) },
-                        {"v", ToJsonSchema(typeContraints[1], includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes) }
+                        {"k", ToJsonSchema(typeContraints[0],  false, config, "", visitedTypes) },
+                        {"v", ToJsonSchema(typeContraints[1],  false, config, "", visitedTypes) }
                     }
                 };
                 schema.Keywords.Add(propertiesKeyword);
@@ -605,13 +594,13 @@ namespace BH.Engine.JsonSchema
                     if (typeContraints.Length == 0)
                         return null;
                     else if (typeContraints.Length == 1)
-                        return Create.ItemKeyword(ToJsonSchema(typeContraints[0], includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes));
+                        return Create.ItemKeyword(ToJsonSchema(typeContraints[0], false, config, "", visitedTypes));
                     else
                     {
                         AllOfKeyword allOf = new AllOfKeyword();
                         foreach (Type constraint in typeContraints)
                         {
-                            allOf.Options.Add(ToJsonSchema(constraint, includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes));
+                            allOf.Options.Add(ToJsonSchema(constraint, false, config, "", visitedTypes));
                         }
                         return Create.ItemKeyword(new oM.JsonSchema.JsonSchema { Keywords = new List<ISchemaKeyWord> { allOf } });
 
@@ -620,7 +609,7 @@ namespace BH.Engine.JsonSchema
                 }
                 else
                 {
-                    return Create.ItemKeyword(ToJsonSchema(elementType, includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes));
+                    return Create.ItemKeyword(ToJsonSchema(elementType, false, config, "", visitedTypes));
                 }
 
             }
@@ -652,10 +641,10 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static oM.JsonSchema.JsonSchema FragmentSetJsonSchema(oM.JsonSchema.JsonSchema schema, bool typeAsRef, bool includeInnerIds, HashSet<Type> visitedTypes)
+        private static oM.JsonSchema.JsonSchema FragmentSetJsonSchema(oM.JsonSchema.JsonSchema schema, ConvertConfig config, HashSet<Type> visitedTypes)
         {
             oM.JsonSchema.JsonSchema array = Create.JsonSchema(SchemaType.array, true);
-            array.Keywords.Add(new ItemKeyword() { Item = ToJsonSchema(typeof(IFragment), includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes) });
+            array.Keywords.Add(new ItemKeyword() { Item = ToJsonSchema(typeof(IFragment), false, config, "", visitedTypes) });
 
             oM.JsonSchema.JsonSchema obj = Create.JsonSchema(SchemaType.@object, true);
             obj.Keywords.Add(new PropertiesKeyword()

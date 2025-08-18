@@ -39,7 +39,7 @@ namespace BH.Engine.JsonSchema
         private static oM.JsonSchema.JsonSchema TypeSchema(Type type = null)
         {
             oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object);
-            oM.JsonSchema.JsonSchema nameSchema = ToJsonSchema(typeof(string), false, false, "", false, new HashSet<Type>());
+            oM.JsonSchema.JsonSchema nameSchema = ToJsonSchema(typeof(string), false, new ConvertConfig(), "", new HashSet<Type>());
             if(type != null)
                 nameSchema.Keywords.Add(new ConstKeyword { Value = type.FullName });
 
@@ -66,10 +66,10 @@ namespace BH.Engine.JsonSchema
                 Properties = new Dictionary<string, oM.JsonSchema.JsonSchema>
                 {
                     {m_TypeDescriminator, TypeDisciminatorSchema(typeof(System.Drawing.Color)) },
-                    {"A", ToJsonSchema(typeof(int), false, false, "", false, new HashSet<Type>()) },
-                    {"R", ToJsonSchema(typeof(int), false, false, "", false, new HashSet<Type>()) },
-                    {"G", ToJsonSchema(typeof(int), false, false, "", false, new HashSet<Type>()) },
-                    {"B", ToJsonSchema(typeof(int), false, false, "", false, new HashSet<Type>()) },
+                    {"A", ToJsonSchema(typeof(int), false, new ConvertConfig(), "", new HashSet<Type>()) },
+                    {"R", ToJsonSchema(typeof(int), false, new ConvertConfig(), "", new HashSet<Type>()) },
+                    {"G", ToJsonSchema(typeof(int), false, new ConvertConfig(), "", new HashSet<Type>()) },
+                    {"B", ToJsonSchema(typeof(int), false, new ConvertConfig(), "", new HashSet<Type>()) },
                 }
             };
 
@@ -93,7 +93,7 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static oM.JsonSchema.JsonSchema TupleSchema(this Type tupleType, bool typeAsRef, bool includeInnerIds, HashSet<Type> visitedTypes)
+        private static oM.JsonSchema.JsonSchema TupleSchema(this Type tupleType, ConvertConfig config, HashSet<Type> visitedTypes)
         {
             oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.array);
 
@@ -104,9 +104,9 @@ namespace BH.Engine.JsonSchema
             for (int i = 0; i < typeArgs.Length; i++)
             {
                 if (typeArgs[i].IsGenericParameter)
-                    items.PreFixItems[i] = GenericParameterTypeSchema(typeArgs[i], typeAsRef, includeInnerIds, visitedTypes);
+                    items.PreFixItems[i] = GenericParameterTypeSchema(typeArgs[i], config, visitedTypes);
                 else
-                    items.PreFixItems[i] = ToJsonSchema(typeArgs[i], includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes);
+                    items.PreFixItems[i] = ToJsonSchema(typeArgs[i], false, config, "", visitedTypes);
             }
 
             schema.Keywords.Add(items);
@@ -116,20 +116,20 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static oM.JsonSchema.JsonSchema GenericParameterTypeSchema(this Type genericParameterType, bool typeAsRef, bool includeInnerIds, HashSet<Type> visitedTypes)
+        private static oM.JsonSchema.JsonSchema GenericParameterTypeSchema(this Type genericParameterType, ConvertConfig config, HashSet<Type> visitedTypes)
         {
             Type[] constraints = genericParameterType.GetGenericParameterConstraints();
             if (constraints.Length == 0)
                 return new oM.JsonSchema.JsonSchema();    //Empty doc, no limitation
             else if (constraints.Length == 1)
-                return ToJsonSchema(constraints[0], includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes);
+                return ToJsonSchema(constraints[0], false, config, "", visitedTypes);
             else
             {
                 oM.JsonSchema.JsonSchema schema = new oM.JsonSchema.JsonSchema();
                 AllOfKeyword allOfKeyword = new AllOfKeyword();
                 foreach (Type type in constraints)
                 {
-                    allOfKeyword.Options.Add(ToJsonSchema(type, includeInnerIds, typeAsRef, "", includeInnerIds, visitedTypes));
+                    allOfKeyword.Options.Add(ToJsonSchema(type, false, config, "", visitedTypes));
                 }
                 schema.Keywords.Add(allOfKeyword);
                 return schema;
@@ -140,7 +140,7 @@ namespace BH.Engine.JsonSchema
         private static oM.JsonSchema.JsonSchema DecimalSchema()
         {
             oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
-            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, oM.JsonSchema.JsonSchema> { { "$numberDecimal", ToJsonSchema(typeof(string), false, false, "", false, new HashSet<Type>()) } } });
+            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, oM.JsonSchema.JsonSchema> { { "$numberDecimal", ToJsonSchema(typeof(string), false, new ConvertConfig(), "", new HashSet<Type>()) } } });
             return schema;
         }
 
@@ -150,7 +150,7 @@ namespace BH.Engine.JsonSchema
         {
             oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
 
-            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, oM.JsonSchema.JsonSchema> { { "$date", ToJsonSchema(typeof(int), false, false, "", false, new HashSet<Type>()) } } });
+            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, oM.JsonSchema.JsonSchema> { { "$date", ToJsonSchema(typeof(int), false, new ConvertConfig(), "", new HashSet<Type>()) } } });
             return schema;
         }
 
@@ -163,8 +163,8 @@ namespace BH.Engine.JsonSchema
             PrefixItemsKeyword items = new PrefixItemsKeyword { AllowAdditional = false };
 
             items.PreFixItems = new oM.JsonSchema.JsonSchema[2];
-            items.PreFixItems[0] = ToJsonSchema(typeof(long), false, false, "", false, new HashSet<Type>());
-            items.PreFixItems[1] = ToJsonSchema(typeof(int), false, false, "", false, new HashSet<Type>());
+            items.PreFixItems[0] = ToJsonSchema(typeof(long), false, new ConvertConfig(), "", new HashSet<Type>());
+            items.PreFixItems[1] = ToJsonSchema(typeof(int), false, new ConvertConfig(), "", new HashSet<Type>());
             schema.Keywords.Add(items);
             return schema;
         }
@@ -189,15 +189,15 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static oM.JsonSchema.JsonSchema NoUpdateExceptionSchema(Type type)
+        private static oM.JsonSchema.JsonSchema NoUpdateExceptionSchema(Type type, ConvertConfig config)
         {
             oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
-            var id = type.SchemaId();
+            var id = type.SchemaId(config.Branch);
             if (id != null)
             {
                 schema.Keywords.Add(new IdKeyword() { Uri = id });
             }
-            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, oM.JsonSchema.JsonSchema> { { "Message", ToJsonSchema(typeof(string), false, false, "", false, new HashSet<Type>()) } } });
+            schema.Keywords.Add(new PropertiesKeyword { Properties = new Dictionary<string, oM.JsonSchema.JsonSchema> { { "Message", ToJsonSchema(typeof(string), false, new ConvertConfig(), "", new HashSet<Type>()) } } });
             schema.Keywords.Add(new RequiredKeyword { Required = new List<string> { "Message" } });
             return schema;
         }
