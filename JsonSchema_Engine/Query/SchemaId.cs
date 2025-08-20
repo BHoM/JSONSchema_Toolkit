@@ -64,7 +64,15 @@ namespace BH.Engine.JsonSchema
             //Skip 1 to ignore the main namespace as that is taken care of by using the assembly name, avoinding for example Geometry_oM/Geometry
             string namePath = string.Join("/", type.FullName.Replace("BH.oM.Adapters.","").Replace("BH.oM.", "").Split('.').Skip(1));
 
-            return $"{assembly.GetName().Name}/{namePath}.json";
+            return $"{assembly.RelativeAssemblySchemaId()}/{namePath}.json";
+        }
+
+        /***************************************************/
+
+        [Description("Gets the path to the type to be used for a particular assembly. Currently set to simply be the name of the assembly.")]
+        public static string RelativeAssemblySchemaId(this Assembly assembly)
+        {
+            return $"{assembly.GetName().Name}";
         }
 
         /***************************************************/
