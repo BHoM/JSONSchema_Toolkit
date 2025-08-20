@@ -69,12 +69,15 @@ namespace BH.Engine.JsonSchema
 
             schema = new oM.JsonSchema.JsonSchema();
 
-            if ((isTopLevel && config.IncludeId) || (!config.TypesAsRef && config.IncludeInnerIds))
+            if (isTopLevel)
             {
-                var id = type.SchemaId(config.Branch);
-                if (id != null)
+                if (config.IncludeId)
                 {
-                    schema.Keywords.Add(new IdKeyword() { Uri = id });
+                    var id = type.SchemaId(config.Branch);
+                    if (id != null)
+                    {
+                        schema.Keywords.Add(new IdKeyword() { Uri = id });
+                    }
                 }
             }
             else
@@ -90,6 +93,15 @@ namespace BH.Engine.JsonSchema
                 }
                 else
                 {
+                    if (config.IncludeInnerIds)
+                    {
+                        var id = type.SchemaId(config.Branch);
+                        if (id != null)
+                        {
+                            schema.Keywords.Add(new IdKeyword() { Uri = id });
+                        }
+                    }
+
                     if (visitedTypes.Contains(type))
                     {
                         BH.Engine.Base.Compute.RecordError($"Type {type.FullName} has already been visited. This is likely due to a circular reference in the type hierarchy. Returning empty schema to avoid infinite recursion. The schema type can only be generated with type AsRef set to true.");
