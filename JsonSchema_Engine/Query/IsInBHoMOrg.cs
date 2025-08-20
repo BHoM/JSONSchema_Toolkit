@@ -47,7 +47,7 @@ namespace BH.Engine.JsonSchema
             AssemblyDescriptionAttribute atr = assembly.GetCustomAttribute<AssemblyDescriptionAttribute>();
             if (atr != null)
             {
-                return atr.Description.Contains($"github.com/BHoM");
+                return atr.Description.Contains($"github.com/BHoM/");
             }
             return false;
         }
