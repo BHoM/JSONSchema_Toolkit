@@ -86,6 +86,14 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        private static void Serialise(this SchemaKeyword value, BsonDocumentWriter writer)
+        {
+            writer.WriteName("$schema");
+            writer.WriteString(value.Schema);
+        }
+
+        /*******************************************/
+
         private static void Serialise(this IdKeyword value, BsonDocumentWriter writer)
         {
             writer.WriteName("$id");

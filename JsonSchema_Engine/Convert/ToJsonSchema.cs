@@ -71,6 +71,11 @@ namespace BH.Engine.JsonSchema
 
             if (isTopLevel)
             {
+                //Set the schema version to 2020-12
+                //This is the latest version of JSON Schema and is used by default
+                //Setting this as hardcoded here, and not in the config, as this is the latest version and should be used by default
+                //Can be overridden in the config if needed at a later date.
+                schema.Keywords.Add(new SchemaKeyword { Schema = "https://json-schema.org/draft/2020-12/schema" }); 
                 if (config.IncludeId)
                 {
                     var id = type.SchemaId(config.Branch);
@@ -162,7 +167,7 @@ namespace BH.Engine.JsonSchema
                         PropertiesKeyword properties = GetProperties(type,config, visitedTypes);
                         if (properties != null)
                         {
-                            //Put proeprties declared on the type as required. This skips over properties inherited from base class
+                            //Put properties declared on the type as required. This skips over properties inherited from base class
                             //RequiredKeyword req = new RequiredKeyword { Required = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public).Where(x => x.GetCustomAttribute<DynamicPropertyAttribute>() == null).Select(x => x.Name).Except(new string[] { "Fragments", "Tags" }).ToList() };
                             properties.Properties[m_TypeDescriminator] = TypeDisciminatorSchema(type, "Optional type disciminator.");
                             if (isTopLevel)
