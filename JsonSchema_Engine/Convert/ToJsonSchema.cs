@@ -294,6 +294,12 @@ namespace BH.Engine.JsonSchema
             if (items != null)
                 schema.Keywords.Add(items);
 
+            if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(HashSet<>))
+            {
+                //HashSet is a special case, as it is not an array, but a set of items
+                schema.Keywords.Add(new UniqueItemsKeyword { Unique = true });
+            }
+
             return schema;
         }
 

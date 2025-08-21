@@ -355,6 +355,14 @@ namespace BH.Engine.JsonSchema
         }
 
         /*******************************************/
+
+        private static void Serialise(this UniqueItemsKeyword value, BsonDocumentWriter writer)
+        {
+            writer.WriteName("uniqueItems");
+            writer.WriteBoolean(value.Unique);
+        }
+
+        /*******************************************/
     }
 }
 
