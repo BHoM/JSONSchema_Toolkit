@@ -167,7 +167,7 @@ namespace BH.Engine.JsonSchema
                     }
                     break;
                 default:
-                    break;  //For all other types, no additional keywords are added
+                    break;  //For all other types, no additional keywords are added. Array types are handled explicitly above, hence no mroe requirements when reaching thhis switch statement
             }
 
             return schema;
@@ -583,58 +583,61 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-
+        [Description("Creates a ItemKeyword to be used with array types. Extracts the items based ont he type of the array.")]
         private static ItemKeyword GetItems(this Type type, ConvertConfig config, HashSet<Type> visitedTypes)
         {
-            if (type.IsArray)
+            if (type.IsArray)   //Base array types
             {
                 int rank = type.GetArrayRank();
-                if (rank == 1)
+                if (rank == 1)  //For rank 1, simply create a new item keyword with the element type as the schema
                 {
-                    return Create.ItemKeyword(ToJsonSchema(type.GetElementType(), false, config, "", new HashSet<Type>(visitedTypes)));
+                    return Create.ItemKeyword(ToJsonSchema(type.GetElementType(), false, config, "", new HashSet<Type>(visitedTypes))); 
                 }
                 else
                 {
-                    ItemKeyword innerItem = Create.ItemKeyword(ToJsonSchema(type.GetElementType(), false, config, "", new HashSet<Type>(visitedTypes)));
-                    ItemKeyword current = innerItem;
+                    //For N dimensional array, the innermost item will be the array type
+                    ItemKeyword current = Create.ItemKeyword(ToJsonSchema(type.GetElementType(), false, config, "", new HashSet<Type>(visitedTypes)));
                     for (int i = 0; i < rank - 1; i++)
                     {
+                        //Recursively wrap the inner into new item keywords
                         ItemKeyword item = new ItemKeyword { Item = new oM.JsonSchema.JsonSchema { Keywords = new List<ISchemaKeyWord> { current } } };
                         current = item;
                     }
-                    return current;
+                    return current; //Top level, with the arraytype as the innermost item
                 }
 
             }
+
             if (type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(Dictionary<,>) || typeof(IDictionary).IsAssignableFrom(type)))
             {
-                oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
-                Type[] typeContraints = type.GetGenericArguments();
+                //Non stringbased dictionaries are stored as an array of obejcts with "k" as the key and "v" as the value
+                oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false); //Schema to be the item
+                Type[] typeContraints = type.GetGenericArguments(); //Get the generic args
                 PropertiesKeyword propertiesKeyword = new PropertiesKeyword()
                 {
                     Properties = new Dictionary<string, oM.JsonSchema.JsonSchema>
                     {
-                        {"k", ToJsonSchema(typeContraints[0],  false, config, "", new HashSet<Type>(visitedTypes)) },
-                        {"v", ToJsonSchema(typeContraints[1],  false, config, "", new HashSet<Type>(visitedTypes)) }
+                        {"k", ToJsonSchema(typeContraints[0],  false, config, "", new HashSet<Type>(visitedTypes)) },   //Key correspond to first generic argument
+                        {"v", ToJsonSchema(typeContraints[1],  false, config, "", new HashSet<Type>(visitedTypes)) }    //String correspond to second generic argument
                     }
                 };
                 schema.Keywords.Add(propertiesKeyword);
                 return Create.ItemKeyword(schema);
             }
 
-            if (type.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>)))
+            if (type.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>)))    //Case for all other enumerable types
             {
                 Type elementType = GetAnyElementType(type);
-                if (elementType.IsGenericParameter)
+                if (elementType.IsGenericParameter) //The array is a generic type parameter, we need to check the constraints
                 {
                     Type[] typeContraints = elementType.GetGenericParameterConstraints();
                     if (typeContraints.Length == 0)
-                        return null;
+                        return null;    //No constraints, return null as all values are valid.
                     else if (typeContraints.Length == 1)
-                        return Create.ItemKeyword(ToJsonSchema(typeContraints[0], false, config, "", new HashSet<Type>(visitedTypes)));
+                        return Create.ItemKeyword(ToJsonSchema(typeContraints[0], false, config, "", new HashSet<Type>(visitedTypes))); //Single consraint, return it as the item schema
                     else
                     {
-                        AllOfKeyword allOf = new AllOfKeyword();
+                        AllOfKeyword allOf = new AllOfKeyword();    //Multiple constraints, we need to create an allOf keyword that contains all the constraints
                         foreach (Type constraint in typeContraints)
                         {
                             allOf.Options.Add(ToJsonSchema(constraint, false, config, "", new HashSet<Type>(visitedTypes)));
@@ -646,11 +649,9 @@ namespace BH.Engine.JsonSchema
                 }
                 else
                 {
-                    return Create.ItemKeyword(ToJsonSchema(elementType, false, config, "", new HashSet<Type>(visitedTypes)));
+                    return Create.ItemKeyword(ToJsonSchema(elementType, false, config, "", new HashSet<Type>(visitedTypes)));   //Non-generic inner type, such as List<int> rather than List<T>. Simply return a schema corresponding to the element type.
                 }
-
             }
-
 
             return null;
         }
