@@ -73,15 +73,12 @@ namespace BH.Engine.JsonSchema
             if(schema != null)
                 return schema;
 
+
             schema = new oM.JsonSchema.JsonSchema();
 
             if (isTopLevel)
             {
-                //Set the schema version to 2020-12
-                //This is the latest version of JSON Schema and is used by default
-                //Setting this as hardcoded here, and not in the config, as this is the latest version and should be used by default
-                //Can be overridden in the config if needed at a later date.
-                schema.Keywords.Add(new SchemaKeyword { Schema = "https://json-schema.org/draft/2020-12/schema" }); 
+                schema.AddSchemaVersion(); //Add schema version to top level schema
                 if (config.IncludeId)
                     schema.AddId(type, config.Branch);
             }
@@ -109,31 +106,38 @@ namespace BH.Engine.JsonSchema
                 }
             }
 
-
+            //Special case for FragmentSet
             if (type == typeof(FragmentSet))
                 return FragmentSetJsonSchema(schema, config, visitedTypes);
 
+            //Special case for BHoM Interfaces and Abstract classes
             if (type.Namespace.IsOmNamespace() && (type.IsInterface || type.IsAbstract))
-            {
                 return InterfaceSchema(schema, type, config, visitedTypes);
-            }
 
+            //Add Title keyword for BHoM objects
             if (typeof(IObject).IsAssignableFrom(type))
                 schema.Keywords.Add(new TitleKeyword() { Title = type.Name });
 
+            //Special case for BHoM enums
             if (type.IsEnum && type.Namespace.StartsWith("BH.oM"))
                 return EnumSchema(schema, type);
 
+            //Get the schema type for the type
             SchemaType schemaType = type.SchemaType();
+
+            //Check if type is an array, and if so, return the array schema
             if (schemaType == SchemaType.array)
                 return ArraySchema(schema, type, config, desc, visitedTypes);
 
+            //Add schema type keyword to the schema. Adds null if the type itself is nullable, or if the initial type was a Nullable type, checked for at the start of the method.
             schema.Keywords.Add(Create.TypeKeyword(schemaType, nullable || type.IsNullable()));
 
+            //If the type is a string, add the format keyword if applicable
             SchemaFormat? format = type.SchemaFormat();
             if (format != null)
                 schema.Keywords.Add(new FormatKeyword { Format = format.Value });
 
+            //Add description to the schema if provided or if the type has a DescriptionAttribute
             schema.AddDescription(type, desc);
 
             switch (schemaType)
@@ -149,8 +153,6 @@ namespace BH.Engine.JsonSchema
                         PropertiesKeyword properties = GetProperties(type,config, visitedTypes);
                         if (properties != null)
                         {
-                            //Put properties declared on the type as required. This skips over properties inherited from base class
-                            //RequiredKeyword req = new RequiredKeyword { Required = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public).Where(x => x.GetCustomAttribute<DynamicPropertyAttribute>() == null).Select(x => x.Name).Except(new string[] { "Fragments", "Tags" }).ToList() };
                             properties.Properties[m_TypeDescriminator] = TypeDisciminatorSchema(type, "Optional type disciminator.");
                             if (isTopLevel)
                                 properties.Properties[m_BHoMVersionProperty] = ToJsonSchema(typeof(string), false, config, "Optional version of BHoM used as part of automatic versioning and schema upgrades.", visitedTypes);
