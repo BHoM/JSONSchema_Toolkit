@@ -68,12 +68,10 @@ namespace BH.Engine.JsonSchema
             if (nullable)
                 type = nullableType;
 
-
+            //Check if type is a system type, and if so, return the system schema for it
             oM.JsonSchema.JsonSchema schema = GetSystemSchema(type, config, desc, visitedTypes, nullable);
             if(schema != null)
-            {
                 return schema;
-            }
 
             schema = new oM.JsonSchema.JsonSchema();
 
@@ -85,35 +83,20 @@ namespace BH.Engine.JsonSchema
                 //Can be overridden in the config if needed at a later date.
                 schema.Keywords.Add(new SchemaKeyword { Schema = "https://json-schema.org/draft/2020-12/schema" }); 
                 if (config.IncludeId)
-                {
-                    var id = type.SchemaId(config.Branch);
-                    if (id != null)
-                    {
-                        schema.Keywords.Add(new IdKeyword() { Uri = id });
-                    }
-                }
+                    schema.AddId(type, config.Branch);
             }
             else
             {
                 if (config.TypesAsRef)
                 {
-                    var id = type.SchemaId(config.Branch);
-                    if (id != null)
-                    {
-                        schema.Keywords.Add(new RefKeyword() { Uri = id });
-                        return schema;
-                    }
+                    var refSchema = Create.RefJsonSchema(type, config.Branch, desc);
+                    if(refSchema != null)
+                        return refSchema; //Return reference schema if types are to be used as references
                 }
                 else
                 {
                     if (config.IncludeInnerIds)
-                    {
-                        var id = type.SchemaId(config.Branch);
-                        if (id != null)
-                        {
-                            schema.Keywords.Add(new IdKeyword() { Uri = id });
-                        }
-                    }
+                        schema.AddId(type, config.Branch);
 
                     if (visitedTypes.Contains(type))
                     {
@@ -151,16 +134,7 @@ namespace BH.Engine.JsonSchema
             if (format != null)
                 schema.Keywords.Add(new FormatKeyword { Format = format.Value });
 
-            string typeDesc = type.GetCustomAttribute<DescriptionAttribute>()?.Description;
-            desc = desc ?? "";
-            if (typeDesc != null)
-            {
-                desc += $" {type.Name}: {typeDesc}";
-            }
-            desc = desc.Trim();
-
-            if (!string.IsNullOrWhiteSpace(desc))   //If description set, add to schema
-                schema.Keywords.Add(new DescriptionKeyword { Description = desc });
+            schema.AddDescription(type, desc);
 
             switch (schemaType)
             {
