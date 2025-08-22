@@ -69,7 +69,7 @@ namespace BH.Engine.JsonSchema
                 type = nullableType;
 
 
-            oM.JsonSchema.JsonSchema schema = GetSystemSchema(type, config, desc, visitedTypes);
+            oM.JsonSchema.JsonSchema schema = GetSystemSchema(type, config, desc, visitedTypes, nullable);
             if(schema != null)
             {
                 return schema;
@@ -209,7 +209,7 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static oM.JsonSchema.JsonSchema GetSystemSchema(this Type type, ConvertConfig config, string desc, HashSet<Type> visitedTypes)
+        private static oM.JsonSchema.JsonSchema GetSystemSchema(this Type type, ConvertConfig config, string desc, HashSet<Type> visitedTypes, bool isNullable)
         {
             if (type.Name == "NoUpdateException")
             {
@@ -237,7 +237,7 @@ namespace BH.Engine.JsonSchema
             }
             if (type == typeof(DateTimeOffset))
             {
-                return DateTimeOffsetSchema();
+                return DateTimeOffsetSchema(isNullable);
             }
             if (type == typeof(IComparable) || type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IComparable<>))
             {

@@ -156,17 +156,35 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        private static oM.JsonSchema.JsonSchema DateTimeOffsetSchema()
+        private static oM.JsonSchema.JsonSchema DateTimeOffsetSchema(bool isNullable)
         {
-            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.array);
+            if (isNullable)
+            {
+                oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, true);
+                PropertiesKeyword properties = new PropertiesKeyword
+                {
+                    Properties = new Dictionary<string, oM.JsonSchema.JsonSchema>
+                    {
+                        {m_TypeDescriminator, TypeDisciminatorSchema(typeof(DateTimeOffset)) },
+                        {m_ValueProperty, DateTimeOffsetSchema(false) },
+                    }
+                };
+                schema.Keywords.Add(properties);
+                schema.Keywords.Add(new RequiredKeyword { Required = new List<string> { m_ValueProperty } });
+                return schema;
+            }
+            else
+            {
+                oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.array, false);
 
-            PrefixItemsKeyword items = new PrefixItemsKeyword { AllowAdditional = false };
+                PrefixItemsKeyword items = new PrefixItemsKeyword { AllowAdditional = false };
 
-            items.PreFixItems = new oM.JsonSchema.JsonSchema[2];
-            items.PreFixItems[0] = ToJsonSchema(typeof(long), false, new ConvertConfig(), "", new HashSet<Type>());
-            items.PreFixItems[1] = ToJsonSchema(typeof(int), false, new ConvertConfig(), "", new HashSet<Type>());
-            schema.Keywords.Add(items);
-            return schema;
+                items.PreFixItems = new oM.JsonSchema.JsonSchema[2];
+                items.PreFixItems[0] = ToJsonSchema(typeof(long), false, new ConvertConfig(), "", new HashSet<Type>());
+                items.PreFixItems[1] = ToJsonSchema(typeof(int), false, new ConvertConfig(), "", new HashSet<Type>());
+                schema.Keywords.Add(items);
+                return schema;
+            }
         }
 
         /*******************************************/
