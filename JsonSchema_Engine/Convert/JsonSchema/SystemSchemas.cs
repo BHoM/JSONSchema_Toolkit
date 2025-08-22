@@ -21,10 +21,12 @@
  */
 
 
-using System.Linq;
-using System.Collections.Generic;
-using System;
+using BH.oM.Base.Attributes;
 using BH.oM.JsonSchema;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Linq;
 
 
 namespace BH.Engine.JsonSchema
