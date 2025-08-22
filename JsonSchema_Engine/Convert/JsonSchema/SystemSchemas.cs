@@ -35,7 +35,9 @@ namespace BH.Engine.JsonSchema
         /**** Private Methods                   ****/
         /*******************************************/
 
-
+        [Description("Generates a JSON Schema for System.Type objects, with optional constraint to a specific type.")]
+        [Input("type", "Optional specific type to constrain the schema to, if null allows any type")]
+        [Output("schema", "JsonSchema representing a Type object with type discriminator and name properties")]
         private static oM.JsonSchema.JsonSchema TypeSchema(Type type = null)
         {
             oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, true);
@@ -58,6 +60,8 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        [Description("Generates a JSON Schema for System.Drawing.Color objects with ARGB properties.")]
+        [Output("schema", "JsonSchema representing a Color object with Alpha, Red, Green, and Blue integer properties")]
         private static oM.JsonSchema.JsonSchema ColourSchema()
         {
             oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
@@ -81,6 +85,8 @@ namespace BH.Engine.JsonSchema
         }
         /*******************************************/
 
+        [Description("Generates a JSON Schema for System.Data.DataTable objects, represented as an array of objects.")]
+        [Output("schema", "JsonSchema representing a DataTable as an array with object-type items")]
         private static oM.JsonSchema.JsonSchema DataTableSchema()
         {
             oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.array, true);
@@ -93,6 +99,11 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        [Description("Generates a JSON Schema for Tuple types, represented as arrays with fixed-length prefix items and no additional items allowed.")]
+        [Input("tupleType", "The tuple type to generate schema for")]
+        [Input("config", "Configuration settings for schema generation")]
+        [Input("visitedTypes", "Set of types already visited to prevent circular references")]
+        [Output("schema", "JsonSchema representing a tuple as an array with typed prefix items")]
         private static oM.JsonSchema.JsonSchema TupleSchema(this Type tupleType, ConvertConfig config, HashSet<Type> visitedTypes)
         {
             oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.array);
@@ -116,6 +127,11 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        [Description("Generates a JSON Schema for generic parameter types, handling type constraints with allOf logic when multiple constraints exist.")]
+        [Input("genericParameterType", "The generic parameter type to generate schema for")]
+        [Input("config", "Configuration settings for schema generation")]
+        [Input("visitedTypes", "Set of types already visited to prevent circular references")]
+        [Output("schema", "JsonSchema representing the generic parameter constraints, empty if no constraints")]
         private static oM.JsonSchema.JsonSchema GenericParameterTypeSchema(this Type genericParameterType, ConvertConfig config, HashSet<Type> visitedTypes)
         {
             Type[] constraints = genericParameterType.GetGenericParameterConstraints();
@@ -137,6 +153,8 @@ namespace BH.Engine.JsonSchema
         }
         /*******************************************/
 
+        [Description("Generates a JSON Schema for System.Decimal objects, represented using MongoDB's $numberDecimal format.")]
+        [Output("schema", "JsonSchema representing a decimal number using MongoDB's extended JSON format")]
         private static oM.JsonSchema.JsonSchema DecimalSchema()
         {
             oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
@@ -146,6 +164,8 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        [Description("Generates a JSON Schema for System.DateTime objects, represented using MongoDB's $date format.")]
+        [Output("schema", "JsonSchema representing a DateTime using MongoDB's extended JSON format")]
         private static oM.JsonSchema.JsonSchema DateTimeSchema()
         {
             oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
@@ -156,6 +176,9 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        [Description("Generates a JSON Schema for System.DateTimeOffset objects, with different representations for nullable and non-nullable versions.")]
+        [Input("isNullable", "Whether the DateTimeOffset is nullable, affecting the schema structure")]
+        [Output("schema", "JsonSchema representing a DateTimeOffset as either an object (nullable) or array (non-nullable)")]
         private static oM.JsonSchema.JsonSchema DateTimeOffsetSchema(bool isNullable)
         {
             if (isNullable)
@@ -189,6 +212,8 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        [Description("Generates a JSON Schema for IComparable and IComparable<T> types, allowing multiple JSON types that can be compared.")]
+        [Output("schema", "JsonSchema allowing object, integer, string, number, or null types for comparable values")]
         private static oM.JsonSchema.JsonSchema IComparableSchema()
         {
             oM.JsonSchema.JsonSchema schema = new oM.JsonSchema.JsonSchema();
@@ -199,6 +224,8 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        [Description("Generates a JSON Schema for System.Object and generic parameter types, allowing any JSON value by providing an empty schema.")]
+        [Output("schema", "Empty JsonSchema that allows any JSON value")]
         private static oM.JsonSchema.JsonSchema SystemObjectSchema()
         {
             oM.JsonSchema.JsonSchema schema = new oM.JsonSchema.JsonSchema();
@@ -207,6 +234,10 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        [Description("Generates a JSON Schema for NoUpdateException objects with a required Message property and optional schema ID.")]
+        [Input("type", "The NoUpdateException type to generate schema for")]
+        [Input("config", "Configuration settings for schema generation, used for branch information in schema ID")]
+        [Output("schema", "JsonSchema representing a NoUpdateException with required Message string property")]
         private static oM.JsonSchema.JsonSchema NoUpdateExceptionSchema(Type type, ConvertConfig config)
         {
             oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
