@@ -61,6 +61,14 @@ namespace BH.Engine.JsonSchema
         [Output("jsonSChema", "Schema representation of the type")]
         private static oM.JsonSchema.JsonSchema ToJsonSchema(this Type type, bool isTopLevel, ConvertConfig config, string desc, HashSet<Type> visitedTypes)
         {
+            //Check if type is nullable type
+            bool nullable = false;
+            Type nullableType = Nullable.GetUnderlyingType(type);
+            nullable = nullableType != null;
+            if (nullable)
+                type = nullableType;
+
+
             oM.JsonSchema.JsonSchema schema = GetSystemSchema(type, config, desc, visitedTypes);
             if(schema != null)
             {
@@ -137,7 +145,7 @@ namespace BH.Engine.JsonSchema
             if (schemaType == SchemaType.array)
                 return ArraySchema(schema, type, config, desc, visitedTypes);
 
-            schema.Keywords.Add(Create.TypeKeyword(schemaType, type.IsNullable()));
+            schema.Keywords.Add(Create.TypeKeyword(schemaType, nullable || type.IsNullable()));
 
             SchemaFormat? format = type.SchemaFormat();
             if (format != null)

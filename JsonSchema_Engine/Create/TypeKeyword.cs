@@ -11,32 +11,10 @@ namespace BH.Engine.JsonSchema
         /**** Public Methods                    ****/
         /*******************************************/
 
-        public static TypeKeyword TypeKeyword(SchemaType schemaType, bool addNullIfNullable = true)
+        public static TypeKeyword TypeKeyword(SchemaType schemaType, bool addNull = true)
         {
-            bool addNull = false;
-            if (addNullIfNullable)
-            {
-                switch (schemaType)
-                {
-                    //not nullable types or null -> do not add null
-                    case SchemaType.boolean:
-                    case SchemaType.integer:
-                    case SchemaType.number:
-                    case SchemaType.@null:
-                        addNull = false;
-                        break;
-                    //nullable types -> add null
-                    case SchemaType.array:
-                    case SchemaType.@object:
-                    case SchemaType.@string:
-                    default:
-                        addNull = true;
-                        break;
-                }
-            }
-
             SchemaType[] types;
-            if (addNull)
+            if (addNull && schemaType != SchemaType.@null)
                 types = new SchemaType[] { schemaType, SchemaType.@null };
             else
                 types = new SchemaType[] { schemaType };
