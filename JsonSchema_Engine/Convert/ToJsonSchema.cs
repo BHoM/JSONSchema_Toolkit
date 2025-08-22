@@ -87,23 +87,24 @@ namespace BH.Engine.JsonSchema
                 if (config.TypesAsRef)  //When TypesAsRef is true, we will return a reference schema for the type, which will be used to link to the type in the schema
                 {
                     var refSchema = Create.RefJsonSchema(type, config.Branch, desc);
-                    if(refSchema != null)
+                    if (refSchema != null)
                         return refSchema; //Return reference schema if types are to be used as references
                 }
-                else
+                else if (config.IncludeInnerIds)    //Add id to the schema if InnerIds is set to true (for the case of non-toplevel schemas, such as properties of other objects)
                 {
-                    if (config.IncludeInnerIds)
-                        schema.AddId(type, config.Branch);
-
-                    if (visitedTypes.Contains(type))
-                    {
-                        BH.Engine.Base.Compute.RecordError($"Type {type.FullName} has already been visited. This is likely due to a circular reference in the type hierarchy. Returning empty schema to avoid infinite recursion. The schema type can only be generated with type AsRef set to true.");
-                        return new oM.JsonSchema.JsonSchema(); //Return empty schema to avoid infinite recursion
-                    }
-                    //Add the type to the visited types to avoid circular references
-                    visitedTypes.Add(type);
+                    schema.AddId(type, config.Branch);
                 }
             }
+
+            //Check for circular references in the type hierarchy
+            if (visitedTypes.Contains(type))
+            {
+                BH.Engine.Base.Compute.RecordError($"Type {type.FullName} has already been visited. This is likely due to a circular reference in the type hierarchy. Returning empty schema to avoid infinite recursion. The schema type can only be generated with type AsRef set to true.");
+                return new oM.JsonSchema.JsonSchema(); //Return empty schema to avoid infinite recursion
+            }
+            //Add the type to the visited types to avoid circular references
+            visitedTypes.Add(type);
+
 
             //Special case for FragmentSet
             if (type == typeof(FragmentSet))
