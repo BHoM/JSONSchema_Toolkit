@@ -48,7 +48,8 @@ namespace BH.Engine.JsonSchema
             if (id != null)
             {
                 var schema = new oM.JsonSchema.JsonSchema { Keywords = new List<ISchemaKeyWord>() };
-                schema.AddDescription(type, description);   //Add descriptions for refs so that they do show up on properties.
+                if(!string.IsNullOrWhiteSpace(description))
+                    schema.AddDescription(type, description);   //Add descriptions for refs so that they do show up on properties.
                 schema.Keywords.Add(new RefKeyword() { Uri = id });
                 return schema;
             }
