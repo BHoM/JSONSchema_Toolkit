@@ -142,38 +142,26 @@ namespace BH.Engine.JsonSchema
 
             switch (schemaType)
             {
-                case SchemaType.array:
-                    ItemKeyword items = GetItems(type, config, visitedTypes);
-                    if (items != null)
-                        schema.Keywords.Add(items);
-                    break;
                 case SchemaType.@object:
-                    if (!typeof(IDynamicPropertyProvider).IsAssignableFrom(type))
+                    PropertiesKeyword properties = GetProperties(type, config, visitedTypes);
+                    if (properties != null)
                     {
-                        PropertiesKeyword properties = GetProperties(type,config, visitedTypes);
-                        if (properties != null)
-                        {
-                            properties.Properties[m_TypeDescriminator] = TypeDisciminatorSchema(type, "Optional type disciminator.");
-                            if (isTopLevel)
-                                properties.Properties[m_BHoMVersionProperty] = ToJsonSchema(typeof(string), false, config, "Optional version of BHoM used as part of automatic versioning and schema upgrades.", visitedTypes);
-                            schema.Keywords.Add(properties);
-                            schema.Keywords.Add(type.RequiredProperties());
-                            //schema.Keywords.Add(new AdditionalPropertiesKeyword { AllowAdditionalProperties = false });
-                        }
+                        properties.Properties[m_TypeDescriminator] = TypeDisciminatorSchema(type, "Optional type disciminator.");
+                        if (isTopLevel)
+                            properties.Properties[m_BHoMVersionProperty] = ToJsonSchema(typeof(string), false, config, "Optional version of BHoM used as part of automatic versioning and schema upgrades.", visitedTypes);
+                        schema.Keywords.Add(properties);
+                        schema.Keywords.Add(type.RequiredProperties());
+                        //schema.Keywords.Add(new AdditionalPropertiesKeyword { AllowAdditionalProperties = false });
                     }
                     break;
                 case SchemaType.@string:
-                    if (type.IsEnum)
+                    if (type.IsEnum)    //Non-BHoM enums are hadled here, as always inserted in place in the schema, rather than found by ref (if boolean is true)
                     {
                         EnumKeyword enumKeyword = GetEnumValues(type);
                         if (enumKeyword != null)
                             schema.Keywords.Add(enumKeyword);
                     }
                     break;
-                case SchemaType.boolean:
-                case SchemaType.integer:
-                case SchemaType.number:
-                case SchemaType.@null:
                 default:
                     break;
             }
@@ -409,24 +397,32 @@ namespace BH.Engine.JsonSchema
         }
         /*******************************************/
 
+        [Description("Creates a PropertiesKeyword for the type, which contains the properties of the type. Returns null if the type has no properties or is a dynamic property provider.")]
         private static PropertiesKeyword GetProperties(Type type, ConvertConfig config, HashSet<Type> visitedTypes)
         {
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
             {
-                return null;
+                return null;    //Cant validate the properties of a dictionary, as it is not a fixed set of properties
             }
 
-            bool isDynamic = typeof(IDynamicObject).IsAssignableFrom(type);
+            if (typeof(IDynamicPropertyProvider).IsAssignableFrom(type))
+            {
+                return null;    //Cant validate a dynamic property provider set of properties, as it is not a fixed set of properties
+            }
+
+            bool isDynamic = typeof(IDynamicObject).IsAssignableFrom(type); //Check if the type is a dynamic object, which has dynamic properties
 
             var propertyInfos = type.GetProperties();
             if (propertyInfos != null && propertyInfos.Any())
             {
+                //Create a properties keyword to hold the properties of the type
                 PropertiesKeyword properties = new PropertiesKeyword();
+
+                //Loop through each property of the type
                 foreach (PropertyInfo property in propertyInfos)
                 {
-
-                    QuantityAttribute classification = property.GetCustomAttribute<QuantityAttribute>();
-
+                    //Get quantity attrbute for the property, if it exists
+                    QuantityAttribute classification = property.GetCustomAttribute<QuantityAttribute>();    
 
                     if (isDynamic &&
                         property.GetCustomAttribute<DynamicPropertyAttribute>() != null &&
@@ -434,27 +430,17 @@ namespace BH.Engine.JsonSchema
                         property.PropertyType.GenericTypeArguments.Length == 2 &&
                         property.PropertyType.GenericTypeArguments[0].IsEnum)
                     {
-                        foreach (FieldInfo field in property.PropertyType.GenericTypeArguments[0].GetFields())
+                        //Handle dynamic properties by adding each enum value as a property
+                        foreach (FieldInfo field in property.PropertyType.GenericTypeArguments[0].GetFields().Where(x => x.Name != "value__"))
                         {
-                            if (field.Name == "value__")
-                                continue;
-
-                            DescriptionAttribute descriptionAttribute = field.GetCustomAttribute<DescriptionAttribute>();
-                            string desc = descriptionAttribute?.Description ?? "";
-                            if (classification != null)
-                                desc += $" Property has a quantity of type {classification.GetType().Name} measured in [{classification.SIUnit}].";
-
+                            string desc = field.PropertyDescription(classification);
                             properties.Properties[field.Name] = ToJsonSchema(property.PropertyType.GenericTypeArguments[1], false, config, desc, visitedTypes);
                         }
-
                     }
                     else
                     {
-                        DescriptionAttribute descriptionAttribute = property.GetCustomAttribute<DescriptionAttribute>();
-                        string desc = descriptionAttribute?.Description ?? "";
-                        if (classification != null)
-                            desc += $" Property has a quantity of type {classification.GetType().Name} measured in [{classification.SIUnit}].";
-
+                        //Regular property, add to properties
+                        string desc = property.PropertyDescription(classification);
                         properties.Properties[property.Name] = ToJsonSchema(property.PropertyType, false, config, desc, visitedTypes);
                     }
                 }
@@ -464,6 +450,18 @@ namespace BH.Engine.JsonSchema
             return null;
         }
 
+        /*******************************************/
+
+        [Description("creates a description string for a property based on its DescriptionAttribute and QuantityAttribute, if available.")]
+        private static string PropertyDescription(this MemberInfo info, QuantityAttribute classification)
+        {
+            DescriptionAttribute descriptionAttribute = info.GetCustomAttribute<DescriptionAttribute>();
+            string desc = descriptionAttribute?.Description ?? "";
+            if (classification != null)
+                desc += $" Property has a quantity of type {classification.GetType().Name} measured in [{classification.SIUnit}].";
+
+            return desc;
+        }
 
         /*******************************************/
 
