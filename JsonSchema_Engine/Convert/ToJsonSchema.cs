@@ -84,7 +84,7 @@ namespace BH.Engine.JsonSchema
             }
             else
             {
-                if (config.TypesAsRef)
+                if (config.TypesAsRef)  //When TypesAsRef is true, we will return a reference schema for the type, which will be used to link to the type in the schema
                 {
                     var refSchema = Create.RefJsonSchema(type, config.Branch, desc);
                     if(refSchema != null)
@@ -100,7 +100,6 @@ namespace BH.Engine.JsonSchema
                         BH.Engine.Base.Compute.RecordError($"Type {type.FullName} has already been visited. This is likely due to a circular reference in the type hierarchy. Returning empty schema to avoid infinite recursion. The schema type can only be generated with type AsRef set to true.");
                         return new oM.JsonSchema.JsonSchema(); //Return empty schema to avoid infinite recursion
                     }
-
                     //Add the type to the visited types to avoid circular references
                     visitedTypes.Add(type);
                 }
@@ -140,18 +139,22 @@ namespace BH.Engine.JsonSchema
             //Add description to the schema if provided or if the type has a DescriptionAttribute
             schema.AddDescription(type, desc);
 
+            //Handle additional keywords to be added to the schema based on the schema type
             switch (schemaType)
             {
                 case SchemaType.@object:
+                    //For obejct type schemas, add properties keyword to the schema, which contains the properties of the type
                     PropertiesKeyword properties = GetProperties(type, config, visitedTypes);
-                    if (properties != null)
+                    if (properties != null) //Skip if no properties are found, e.g. for dynamic property providers or dictionaries
                     {
+                        //Add type disciminator to the set of properties
                         properties.Properties[m_TypeDescriminator] = TypeDisciminatorSchema(type, "Optional type disciminator.");
-                        if (isTopLevel)
+                        if (isTopLevel) //If this is a top level schema, add the BHoM version property
                             properties.Properties[m_BHoMVersionProperty] = ToJsonSchema(typeof(string), false, config, "Optional version of BHoM used as part of automatic versioning and schema upgrades.", visitedTypes);
-                        schema.Keywords.Add(properties);
-                        schema.Keywords.Add(type.RequiredProperties());
-                        //schema.Keywords.Add(new AdditionalPropertiesKeyword { AllowAdditionalProperties = false });
+                        
+                        schema.Keywords.Add(properties);    //Add the properties keyword to the schema
+                        schema.Keywords.Add(type.RequiredProperties()); //Add required properties keyword to the schema, which contains the required properties of the type
+                        //schema.Keywords.Add(new AdditionalPropertiesKeyword { AllowAdditionalProperties = false });   // Uncomment to disallow additional properties in the schema. Generally this is required by our current Serialiser_Engine setup, but leaving off for now as this is intended to change
                     }
                     break;
                 case SchemaType.@string:
@@ -163,7 +166,7 @@ namespace BH.Engine.JsonSchema
                     }
                     break;
                 default:
-                    break;
+                    break;  //For all other types, no additional keywords are added
             }
 
             return schema;
@@ -232,11 +235,15 @@ namespace BH.Engine.JsonSchema
 
         private static oM.JsonSchema.JsonSchema ArraySchema(oM.JsonSchema.JsonSchema schema, Type type, ConvertConfig config, string desc, HashSet<Type> visitedTypes)
         {
-            if (type.IsBaseArrayType())
+            //If the type is a base array type, we can use the base array schema method to create the schema
+            //This is true when properties are not interface types, such as IEnumerable<T>, IList<T>, ICollection<T>, etc.
+            //For this case no type disciminator is added
+            if (type.IsBaseArrayType()) 
             {
                 return BaseArraySchema(schema, type, config, desc, visitedTypes);
             }
 
+            //If the type is an interface type, we need to create a schema that includes a type disciminator and a value property
             schema.Keywords.Add(Create.TypeKeyword(SchemaType.@object, true));
 
             oM.JsonSchema.JsonSchema baseSchema = BaseArraySchema(new oM.JsonSchema.JsonSchema(), type, config, desc, visitedTypes);
@@ -262,13 +269,14 @@ namespace BH.Engine.JsonSchema
             if (!string.IsNullOrWhiteSpace(desc))   //If description set, add to schema
                 schema.Keywords.Add(new DescriptionKeyword { Description = desc });
 
-            ItemKeyword items = GetItems(type, config, visitedTypes);
+            //Get the ItemKeyword for the type, which contains the schema that will be used to validate the items in the array
+            ItemKeyword items = GetItems(type, config, visitedTypes);   
             if (items != null)
                 schema.Keywords.Add(items);
 
             if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(HashSet<>))
             {
-                //HashSet is a special case, as it is not an array, but a set of items
+                //Add unique items keyword for HashSet types, as they are expected to have unique items
                 schema.Keywords.Add(new UniqueItemsKeyword { Unique = true });
             }
 
@@ -279,19 +287,23 @@ namespace BH.Engine.JsonSchema
 
         private static bool IsBaseArrayType(this Type type)
         {
-            return !type.IsInterface;
+            return !type.IsInterface;   //This might not be fully conclusive of all situations, but from Testing it is covering the cases we have seen so far.
         }
 
         /*******************************************/
 
+        [Description("Interfaces are handled by checking the the required type discriminator is set, and for the value to be one of the subtypes of the interface or abstract class.\n" +
+                     "The object is the checked against the schema of this sub-type by the use of allOf stement with a series of If-then statements in it, where the If checks the type discriminator.\n" +
+                     "This mimics the behaviour of a Type-switch in JsonSchema format, and given significantly clearer error messaging compared to using oneOf or anyOf patterns.")]
         private static oM.JsonSchema.JsonSchema InterfaceSchema(oM.JsonSchema.JsonSchema schema, Type type, ConvertConfig config, HashSet<Type> visitedTypes)
         {
+            //Interfaces and abstract classes are handled by requiring the type discriminator to be set, and for the value to be one of the subtypes of the interface or abstract class.
             schema.Keywords.Add(new RequiredKeyword { Required = new List<string> { m_TypeDescriminator } });
             List<Type> subTypes = type.Subtypes().Where(x => x.IsInBHoMOrg()).OrderBy(x => x.FullName).ToList();
-            AllOfKeyword allOf = new AllOfKeyword();
 
             if (subTypes.Count > 0)
             {
+                //First a check is made that the type discriminator is set to one of the subtypes
                 PropertiesKeyword properties = new PropertiesKeyword()
                 {
                     Properties = new Dictionary<string, oM.JsonSchema.JsonSchema>
@@ -301,6 +313,8 @@ namespace BH.Engine.JsonSchema
                 };
                 schema.Keywords.Add(properties);
 
+                //Then an allOf keyword is added, which contains a set of if-then statements for each subtype
+                AllOfKeyword allOf = new AllOfKeyword();
                 foreach (Type subType in subTypes)
                 {
                     IfKeyword ifKeyword = new IfKeyword();
@@ -309,13 +323,18 @@ namespace BH.Engine.JsonSchema
                     propertiesKeyword.Properties[m_TypeDescriminator] = TypeDisciminatorSchema(subType);
                     hasThisTypeDiscriminator.Keywords.Add(propertiesKeyword);
                     hasThisTypeDiscriminator.Keywords.Add(new RequiredKeyword { Required = new List<string> { m_TypeDescriminator } });
-                    oM.JsonSchema.JsonSchema subSchema = subType.ToJsonSchema(false, config, "", visitedTypes);
-
+                    //If the object has this type discriminator
                     ifKeyword.If = hasThisTypeDiscriminator;
+
+                    //Then it should match the schema of the subtype
+                    oM.JsonSchema.JsonSchema subSchema = subType.ToJsonSchema(false, config, "", visitedTypes);
                     ifKeyword.Then = subSchema;
 
+                    //Wrap if-then statement into a schema to be added to the allOf keyword
                     oM.JsonSchema.JsonSchema allOfitem = new oM.JsonSchema.JsonSchema();
                     allOfitem.Keywords.Add(ifKeyword);
+
+                    //Add as option to the allOf keyword
                     allOf.Options.Add(allOfitem);
                 }
                 schema.Keywords.Add(allOf);
@@ -325,34 +344,37 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        [Description("Creates a JsonSchema that helps validate the type disciminator against a list of provided types. Special case handling is made for generic types.")]
         private static oM.JsonSchema.JsonSchema RequiredTypes(List<Type> types)
         {
             oM.JsonSchema.JsonSchema requiredTypes = new oM.JsonSchema.JsonSchema();
             if (types.Count == 0)
-                return requiredTypes;
+                return requiredTypes;   //No types provided, return empty schema
             if (types.Count == 1)
             {
-                requiredTypes.Keywords.Add(types[0].TypeConstantWithGenericCheck());
+                requiredTypes.Keywords.Add(types[0].TypeConstantWithGenericCheck());    //Single type provided, add it as a constant keyword or pattern keyword for generic types
             }
             else
             {
+                //Split between generic and non-generic types
                 List<Type> genericTypes = types.Where(x => x.IsGenericType).ToList();
                 List<Type> nonGenericTypes = types.Where(x => !x.IsGenericType).ToList();
                 EnumKeyword enumKeyword = null;
-                if (nonGenericTypes.Count != 0)
+                if (nonGenericTypes.Count != 0) //All non-generic types can be checked with an enum keyword against full names
                     enumKeyword = new EnumKeyword { Values = new HashSet<string>(nonGenericTypes.Select(x => x.FullName)) };
 
                 if (genericTypes.Count == 0)
                 {
-                    requiredTypes.Keywords.Add(enumKeyword);
+                    requiredTypes.Keywords.Add(enumKeyword);    //If no generic types, just add the enum keyword with the non-generic types
                 }
                 else
                 {
+                    //For case of generic types, we need to create a oneOf keyword that contains the enum keyword and the type constants for each generic type
                     OneOfKeyword oneOfKeyword = new OneOfKeyword();
-                    if (enumKeyword != null)
+                    if (enumKeyword != null)    //If we have non-generic types, they will be added as one option in the oneOf keyword through the enum keyword
                         oneOfKeyword.Options.Add(Create.JsonSchemaSingleKeyword(enumKeyword));
 
-                    foreach (Type type in genericTypes)
+                    foreach (Type type in genericTypes) //For each generic type, we add a pattern keyword that matches the type name with generic parameters
                     {
                         oneOfKeyword.Options.Add(Create.JsonSchemaSingleKeyword(type.TypeConstantWithGenericCheck()));
                     }
@@ -365,14 +387,15 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        [Description("Creates a JsonSchema to be used to validate the Type disciminator of an object.")]
         private static oM.JsonSchema.JsonSchema TypeDisciminatorSchema(Type type, string desc = "")
         {
-            oM.JsonSchema.JsonSchema typeConst = Create.JsonSchema(SchemaType.@string, false);
-            if (!string.IsNullOrEmpty(desc))
+            oM.JsonSchema.JsonSchema typeConst = Create.JsonSchema(SchemaType.@string, false);  //Types are serialised as strings
+            if (!string.IsNullOrEmpty(desc))    //Add description if provided
             {
                 typeConst.Keywords.Add(new DescriptionKeyword { Description = desc });
             }
-            typeConst.Keywords.Add(type.TypeConstantWithGenericCheck());
+            typeConst.Keywords.Add(type.TypeConstantWithGenericCheck());    //Add the type constant or pattern keyword for generic types
 
             return typeConst;
 
@@ -380,19 +403,20 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        [Description("Creates a constant keyword with the types full name for non-generic types, and a pattern keyword for generic types. The pattern matches the full name of the type with generic parameters.")]
         private static ISchemaKeyWord TypeConstantWithGenericCheck(this Type type)
         {
-            if (type.IsGenericType)
+            if (type.IsGenericType) //If the type is a generic type, we need to create a pattern keyword that matches the type name with generic parameters
             {
                 string fullName;
                 if(type.FullName != null)
                     fullName = type.FullName.Split('[')[0].Replace(".", "\\.");
                 else
                     fullName = (type.Namespace + "." + type.Name).Split('`')[0].Replace(".", "\\.");
-                return new PatternKeyword { Value = $"^{fullName}\\[\\[.*\\]\\]$" };
+                return new PatternKeyword { Value = $"^{fullName}\\[\\[.*\\]\\]$" };    //Full name with generic parameters is matched by a pattern keyword
             }
             else
-                return new ConstKeyword { Value = type.FullName };
+                return new ConstKeyword { Value = type.FullName };  //Non generic types can be checked with a constant keyword matching the full name
 
         }
         /*******************************************/
@@ -465,37 +489,40 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
+        [Description("Returns a RequiredProperties keyword for the type, which contains the required properties of the type. These are generally all properties defined on the class, as well as all base properties required by the cosntructor for immutable obejects")]
         private static RequiredKeyword RequiredProperties(this Type type)
         {
-            if (type == typeof(BHoMObject))
+            if (type == typeof(BHoMObject)) //BHoMObject is the base class for all BHoM objects. All of the properties of the BHoMObejct are optional, so we return an empty RequiredKeyword
                 return new RequiredKeyword();
 
+            //Get a list of properties from the type, excluding any properties that are not declared on the type itself (i.e. inherited properties)
             List<PropertyInfo> properties = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public).ToList();
 
             if (typeof(IBHoMObject).IsAssignableFrom(type))
                 properties = properties.Where(x => x.Name != m_TagsProperty && x.Name != m_FragmentsProperty).ToList();     //Tags and Fragments are not required properties of BHoMObjects
 
+            //If the type is an immutable object, we need to add the properties required by the constructor
             if (typeof(IImmutable).IsAssignableFrom(type))
             {
                 ConstructorInfo[] constructors = type.GetConstructors();
                 if (constructors.Length > 0)
                 {
-                    var ctor = type.GetConstructors().OrderByDescending(x => x.GetParameters().Count()).First();
-                    var parameters = ctor.GetParameters();
+                    var ctor = type.GetConstructors().OrderByDescending(x => x.GetParameters().Count()).First();    //Get constructor with most parameters
+                    var parameters = ctor.GetParameters();  //Get the parameters of the constructor
 
-                    var matches = parameters
+                    var matches = parameters    //Find all properties that match the parameters by name, ignoring case
                         .GroupJoin(type.GetProperties(),
                             parameter => parameter.Name,
                             property => property.Name,
                             (parameter, props) => new { Parameter = parameter, Properties = props },
                             StringComparer.OrdinalIgnoreCase);
 
-                    if (matches.All(m => m.Properties.Count() == 1))
+                    if (matches.All(m => m.Properties.Count() == 1))    //If all parameters match exactly one property, we can add those properties to the list of properties
                     {
-                        foreach (PropertyInfo property in matches.Select(a => a.Properties.First()))
+                        foreach (PropertyInfo property in matches.Select(a => a.Properties.First()))    //Select the first property for each parameter
                         {
-                            if (!properties.Any(x => x.Name == property.Name))
-                                properties.Add(property);
+                            if (!properties.Any(x => x.Name == property.Name))  //Check if the property is already in the list of properties
+                                properties.Add(property);   //Add the property to the list of properties
                         }
                     }
 
@@ -505,7 +532,7 @@ namespace BH.Engine.JsonSchema
             if (typeof(IDynamicObject).IsAssignableFrom(type))
                 properties = properties.Where(x => x.GetCustomAttribute<DynamicPropertyAttribute>() == null).ToList();  //Remove dynamic properties for dynamic objects
 
-            return new RequiredKeyword { Required = properties.Select(x => x.Name).ToList() };
+            return new RequiredKeyword { Required = properties.Select(x => x.Name).ToList() };  //Create a RequiredKeyword with the names of the properties and return
 
         }
 
@@ -523,6 +550,8 @@ namespace BH.Engine.JsonSchema
             anyOf.Options.Add(simple);
 
             //As top level object
+            //This if for the case where to enum is serialised as a top level obejct, or as a property of another object where the proeprty is different from the enum type.
+            //For this case the enum is serialised as an object with a type discriminator and a value property.
             oM.JsonSchema.JsonSchema topLevel = Create.JsonSchema(SchemaType.@object, false);
             PropertiesKeyword properties = new PropertiesKeyword();
             properties.Properties[m_TypeDescriminator] = TypeDisciminatorSchema(typeof(System.Enum));
@@ -553,9 +582,7 @@ namespace BH.Engine.JsonSchema
 
         /*******************************************/
 
-        [Description("Convert a type To a JsonSchema represenation")]
-        [Input("type", "Object to be converted")]
-        [Output("jsonSChema", "Schema representation of the type")]
+
         private static ItemKeyword GetItems(this Type type, ConvertConfig config, HashSet<Type> visitedTypes)
         {
             if (type.IsArray)
