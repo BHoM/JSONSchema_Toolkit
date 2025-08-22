@@ -580,7 +580,7 @@ namespace BH.Engine.JsonSchema
             }
             if (type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(Dictionary<,>) || typeof(IDictionary).IsAssignableFrom(type)))
             {
-                oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object);
+                oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, false);
                 Type[] typeContraints = type.GetGenericArguments();
                 PropertiesKeyword propertiesKeyword = new PropertiesKeyword()
                 {

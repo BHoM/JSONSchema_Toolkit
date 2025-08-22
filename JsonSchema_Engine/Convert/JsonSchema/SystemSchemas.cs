@@ -38,7 +38,7 @@ namespace BH.Engine.JsonSchema
 
         private static oM.JsonSchema.JsonSchema TypeSchema(Type type = null)
         {
-            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object);
+            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.@object, true);
             oM.JsonSchema.JsonSchema nameSchema = ToJsonSchema(typeof(string), false, new ConvertConfig(), "", new HashSet<Type>());
             if(type != null)
                 nameSchema.Keywords.Add(new ConstKeyword { Value = type.FullName });
@@ -83,7 +83,7 @@ namespace BH.Engine.JsonSchema
 
         private static oM.JsonSchema.JsonSchema DataTableSchema()
         {
-            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.array);
+            oM.JsonSchema.JsonSchema schema = Create.JsonSchema(SchemaType.array, true);
 
             ItemKeyword items = Create.ItemKeyword(SchemaType.@object);
 
