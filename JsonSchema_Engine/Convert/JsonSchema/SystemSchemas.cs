@@ -115,9 +115,9 @@ namespace BH.Engine.JsonSchema
             for (int i = 0; i < typeArgs.Length; i++)
             {
                 if (typeArgs[i].IsGenericParameter)
-                    items.PreFixItems[i] = GenericParameterTypeSchema(typeArgs[i], config, visitedTypes);
+                    items.PreFixItems[i] = GenericParameterTypeSchema(typeArgs[i], config, new HashSet<Type>(visitedTypes));
                 else
-                    items.PreFixItems[i] = ToJsonSchema(typeArgs[i], false, config, "", visitedTypes);
+                    items.PreFixItems[i] = ToJsonSchema(typeArgs[i], false, config, "", new HashSet<Type>(visitedTypes));
             }
 
             schema.Keywords.Add(items);
@@ -138,14 +138,14 @@ namespace BH.Engine.JsonSchema
             if (constraints.Length == 0)
                 return new oM.JsonSchema.JsonSchema();    //Empty doc, no limitation
             else if (constraints.Length == 1)
-                return ToJsonSchema(constraints[0], false, config, "", visitedTypes);
+                return ToJsonSchema(constraints[0], false, config, "", new HashSet<Type>(visitedTypes));
             else
             {
                 oM.JsonSchema.JsonSchema schema = new oM.JsonSchema.JsonSchema();
                 AllOfKeyword allOfKeyword = new AllOfKeyword();
                 foreach (Type type in constraints)
                 {
-                    allOfKeyword.Options.Add(ToJsonSchema(type, false, config, "", visitedTypes));
+                    allOfKeyword.Options.Add(ToJsonSchema(type, false, config, "", new HashSet<Type>(visitedTypes)));
                 }
                 schema.Keywords.Add(allOfKeyword);
                 return schema;
