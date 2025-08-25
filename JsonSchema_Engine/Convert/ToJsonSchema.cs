@@ -99,7 +99,7 @@ namespace BH.Engine.JsonSchema
             //Check for circular references in the type hierarchy
             if (visitedTypes.Contains(type))
             {
-                BH.Engine.Base.Compute.RecordError($"Type {type.FullName} has already been visited. This is likely due to a circular reference in the type hierarchy. Returning empty schema to avoid infinite recursion. The schema type can only be generated with type AsRef set to true.");
+                BH.Engine.Base.Compute.RecordError($"Type {type.FullName} has already been visited. This is likely due to a circular reference in the type hierarchy. Returning empty schema to avoid infinite recursion. The schema type can only be generated with TypesAsRef set to true.");
                 return new oM.JsonSchema.JsonSchema(); //Return empty schema to avoid infinite recursion
             }
             //Add the type to the visited types to avoid circular references
@@ -300,7 +300,7 @@ namespace BH.Engine.JsonSchema
         {
             //Interfaces and abstract classes are handled by requiring the type discriminator to be set, and for the value to be one of the subtypes of the interface or abstract class.
             schema.Keywords.Add(new RequiredKeyword { Required = new List<string> { m_TypeDescriminator } });
-            List<Type> subTypes = type.Subtypes().Where(x => x.IsInBHoMOrg()).OrderBy(x => x.FullName).ToList();
+            List<Type> subTypes = type.Subtypes().Where(x => x.IsInOrg(config)).OrderBy(x => x.FullName).ToList();
 
             if (subTypes.Count > 0)
             {

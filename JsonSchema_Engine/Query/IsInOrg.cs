@@ -36,18 +36,22 @@ namespace BH.Engine.JsonSchema
         /**** Public Methods                            ****/
         /***************************************************/
 
-        public static bool IsInBHoMOrg(this Type type)
+        public static bool IsInOrg(this Type type, ConvertConfig config)
         {
-            return type.Assembly.IsInBHoMOrg();
+            return type.Assembly.IsInOrg(config);
         }
 
         [Description("Checks whether a given assembly name follows the BHoM oM assembly naming convention.")]
-        public static bool IsInBHoMOrg(this Assembly assembly)
+        public static bool IsInOrg(this Assembly assembly, ConvertConfig config)
         {
             AssemblyDescriptionAttribute atr = assembly.GetCustomAttribute<AssemblyDescriptionAttribute>();
             if (atr != null)
             {
-                return atr.Description.Contains($"github.com/BHoM/");
+                foreach (var org in config.OrganisationsToInclude)
+                {
+                    if (atr.Description.Contains($"github.com/{org}/"))
+                        return true;
+                }
             }
             return false;
         }
